@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Patrullas · Tropa Nube</title>
+    <title>Patrullas · Tropa San Francisco Javier</title>
     <link rel="icon" type="image/png" href="marca-agua.png">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -12,12 +12,10 @@
     <nav class="sidebar" id="sidebar">
         <div class="brand">⚜️ San Francisco Javier</div>
         <a href="dashboard.html" class="menu-item">📊 Dashboard</a>
-        <a href="miembros.html" class="menu-item">👥 Miembros</a>
         <a href="inventario.html" class="menu-item">📦 Inventario</a>
         <a href="objetivos.html" class="menu-item">🎯 Objetivos tropa</a>
         <a href="gestion-patrullas.html" class="menu-item active">🐂 Patrullas</a>
         <a href="usuarios.html" class="menu-item">🔑 Usuarios</a>
-        <a href="campamento.html" class="menu-item">⛺ Campamento</a>
         <a href="calendario.html" class="menu-item">📅 Calendario</a>
         <a href="notas.html" class="menu-item">📝 Mis Notas</a>
         <div class="menu-item logout" onclick="logout()">Cerrar Sesión</div>
@@ -25,34 +23,82 @@
 
     <main class="content">
         <h1>🐂 Gestión de patrullas</h1>
-        <p>Objetivos y actividades de cada patrulla, y el chat con sus JP.</p>
+        <p>Todo lo que hay en cada patrulla: lista, objetivos, actividades y sus chats. Y puedes ver la web tal como la ven los scouts.</p>
         <div class="tabs-pat" id="tabs">
             <button type="button" class="on" data-p="toro">🐂 Toro</button>
             <button type="button" data-p="leon">🦁 León</button>
+            <button type="button" data-p="alta">⭐ Alta Patrulla</button>
         </div>
 
-        <div class="grid-2">
-            <section class="card">
-                <h2>Objetivos</h2>
-                <div class="fila-add"><input type="text" id="obj-txt" placeholder="Nuevo objetivo…" maxlength="120"><button class="btn btn-primary" onclick="addObjetivo()">Añadir</button></div>
-                <div id="lista-obj"></div>
-            </section>
-            <section class="card">
-                <h2>Actividades</h2>
-                <div class="fila-add"><input type="text" id="act-txt" placeholder="Nueva actividad…" maxlength="120"><input type="date" id="act-fecha"><input type="time" id="act-hora"><button class="btn btn-primary" onclick="addActividad()">Añadir</button></div>
-                <div id="lista-act"></div>
-            </section>
+        <!-- ===== Vista de una patrulla ===== -->
+        <div id="vista-patrulla">
+            <div class="barra-acc">
+                <a id="ver-scout" class="btn btn-primary" href="patrulla.html?ver=toro" target="_blank" rel="noopener">👁️ Ver como la ven los scouts</a>
+            </div>
+
+            <div class="grid-2">
+                <section class="card">
+                    <h2>Lista de la patrulla <small id="n-miembros" class="peq"></small></h2>
+                    <div id="lista-miembros"></div>
+                </section>
+                <section class="card">
+                    <h2>Chat</h2>
+                    <div class="tabs-pat sub" id="tabs-chat">
+                        <button type="button" class="on" data-c="patrulla_chat">Patrulla</button>
+                        <button type="button" data-c="jefatura_chat">Jefatura ↔ JP</button>
+                    </div>
+                    <div class="chat-box" id="chat"></div>
+                    <div class="fila-add"><input type="text" id="chat-txt" placeholder="Escribe un mensaje…" maxlength="500"><button class="btn btn-primary" onclick="enviar()">Enviar</button></div>
+                </section>
+            </div>
+
+            <div class="grid-2">
+                <section class="card">
+                    <h2>Objetivos de la patrulla</h2>
+                    <div class="fila-add"><input type="text" id="obj-txt" placeholder="Nuevo objetivo…" maxlength="120"><button class="btn btn-primary" onclick="addObjetivo()">Añadir</button></div>
+                    <div id="lista-obj"></div>
+                </section>
+                <section class="card">
+                    <h2>Actividades</h2>
+                    <div class="fila-add"><input type="text" id="act-txt" placeholder="Nueva actividad…" maxlength="120"><input type="date" id="act-fecha"><input type="time" id="act-hora"><button class="btn btn-primary" onclick="addActividad()">Añadir</button></div>
+                    <div id="lista-act"></div>
+                </section>
+            </div>
         </div>
 
-        <section class="card">
-            <h2>Chat con el JP</h2>
-            <div class="chat-box" id="chat"></div>
-            <div class="fila-add"><input type="text" id="chat-txt" placeholder="Escribe un mensaje al JP…" maxlength="500"><button class="btn btn-primary" onclick="enviar()">Enviar</button></div>
-        </section>
+        <!-- ===== Vista Alta Patrulla ===== -->
+        <div id="vista-alta" style="display:none">
+            <div class="grid-2">
+                <section class="card">
+                    <h2>Miembros de la Alta Patrulla <small id="n-alta" class="peq"></small></h2>
+                    <p class="vacio-nota">Todos los JP y SJP de la tropa. El rol se cambia en «Usuarios».</p>
+                    <div id="lista-alta"></div>
+                </section>
+                <section class="card">
+                    <h2>Chat Alta Patrulla</h2>
+                    <div class="chat-box" id="chat-alta"></div>
+                    <div class="fila-add"><input type="text" id="alta-txt" placeholder="Escribe a la Alta Patrulla…" maxlength="500"><button class="btn btn-primary" onclick="enviarAlta()">Enviar</button></div>
+                </section>
+            </div>
+        </div>
     </main>
 
+    <style>
+        .barra-acc { margin-bottom: 18px; }
+        .barra-acc .btn { display: inline-block; }
+        .peq { font-size: .8rem; color: #546c5f; font-weight: 600; }
+        .vacio-nota { color: #546c5f; font-size: .85rem; margin: -4px 0 10px; }
+        .tabs-pat.sub { margin: 4px 0 10px; }
+        .tabs-pat.sub button { padding: 6px 12px; font-size: .85rem; }
+        .rolpill { display:inline-block; font-size:.7rem; font-weight:800; border-radius:99px; padding:1px 8px; background:#8fd0a8; color:#14342a; margin-left:6px; }
+        .rolpill.JP, .rolpill.JT { background:#f2c14e; color:#2b1f00; }
+        .rolpill.SJP { background:#8fd0a8; box-shadow: inset 0 0 0 2px #f2c14e; }
+        .chat-box .m small .rolpill { margin-left: 4px; }
+        .error-fs { color:#b3402f; border-color:#b3402f; background:#f6e3df; }
+    </style>
+
     <script type="module">
-        import { collection, addDoc, onSnapshot, query, where, orderBy, deleteDoc, updateDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { collection, addDoc, onSnapshot, query, where, deleteDoc, updateDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { auth, db } from "./firebase-config.js";
         import "./auth-guard.js";
@@ -60,51 +106,127 @@
         window.toggleMenu = () => document.getElementById('sidebar').classList.toggle('active');
         const $ = (id) => document.getElementById(id);
         const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+        const EMOJI = { toro: "🐂", leon: "🦁" };
 
-        let patrulla = "toro", uid = null, miNombre = "Jefatura", bajas = [];
+        let vista = "toro", canal = "patrulla_chat", uid = null, miNombre = "Jefatura", bajas = [], bajasAlta = [];
+
+        const fallo = (id, e) => { console.error(id, e);
+            $(id).innerHTML = `<p class="vacio error-fs">${e && e.code === "permission-denied" ? "Sin permiso: publica las reglas nuevas (firestore.rules) en Firebase." : "No se pudo cargar: " + esc(e && e.message)}</p>`; };
+
         onAuthStateChanged(auth, async (u) => {
             if (!u) return;
             uid = u.uid;
-            const s = await getDoc(doc(db, "usuarios", u.uid));
-            if (s.exists()) miNombre = s.data().nombre || "Jefatura";
-            escuchar();
+            try { const s = await getDoc(doc(db, "usuarios", u.uid)); if (s.exists()) miNombre = s.data().nombre || "Jefatura"; } catch (e) {}
+            pintar();
         });
 
+        /* ---- Pestañas principales ---- */
         $("tabs").addEventListener("click", (e) => {
             const b = e.target.closest("button"); if (!b) return;
-            patrulla = b.dataset.p;
+            vista = b.dataset.p;
             document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("on", x === b));
-            escuchar();
+            pintar();
+        });
+        $("tabs-chat").addEventListener("click", (e) => {
+            const b = e.target.closest("button"); if (!b) return;
+            canal = b.dataset.c;
+            document.querySelectorAll("#tabs-chat button").forEach(x => x.classList.toggle("on", x === b));
+            escucharChat();
         });
 
-        const q = (col, dir) => query(collection(db, col), where("patrulla", "==", patrulla), orderBy("creadoEn", dir));
-        function escuchar() {
-            bajas.forEach(f => f()); bajas = [];
-            bajas.push(onSnapshot(q("patrulla_objetivos", "desc"), (snap) => {
-                $("lista-obj").innerHTML = snap.empty ? '<p class="vacio">Sin objetivos todavía.</p>' : snap.docs.map(d => { const o = d.data();
-                    return `<div class="item ${o.hecho ? "hecho" : ""}"><input type="checkbox" ${o.hecho ? "checked" : ""} onchange="marcar('${d.id}', this.checked)" aria-label="Cumplido"><span>${esc(o.texto)}</span><button class="x" onclick="borrar('patrulla_objetivos','${d.id}')" aria-label="Eliminar">✕</button></div>`; }).join("");
-            }));
-            bajas.push(onSnapshot(q("patrulla_actividades", "desc"), (snap) => {
-                const ds = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.fecha || "9999").localeCompare(b.fecha || "9999"));
-                $("lista-act").innerHTML = ds.length ? ds.map(a => `<div class="item"><span><b>${esc(a.fecha || "Sin fecha")}</b> ${esc(a.hora || "")} · ${esc(a.texto)}</span><button class="x" onclick="borrar('patrulla_actividades','${a.id}')" aria-label="Eliminar">✕</button></div>`).join("") : '<p class="vacio">Sin actividades todavía.</p>';
-            }));
-            bajas.push(onSnapshot(q("jefatura_chat", "asc"), (snap) => {
-                $("chat").innerHTML = snap.empty ? '<p class="vacio">Aún no hay mensajes con el JP.</p>' : snap.docs.map(d => { const m = d.data();
-                    return `<div class="m ${m.uid === uid ? "yo" : ""}"><small><b>${esc(m.autor)}</b> ${m.rol ? esc(m.rol) : ""}</small>${esc(m.texto)}</div>`; }).join("");
-                $("chat").scrollTop = $("chat").scrollHeight;
-            }));
+        function pintar() {
+            const alta = vista === "alta";
+            $("vista-patrulla").style.display = alta ? "none" : "";
+            $("vista-alta").style.display = alta ? "" : "none";
+            if (alta) { escucharAlta(); } else { $("ver-scout").href = "patrulla.html?ver=" + vista; escucharPatrulla(); }
         }
 
-        window.addObjetivo = async () => { const t = $("obj-txt").value.trim(); if (!t) return;
-            await addDoc(collection(db, "patrulla_objetivos"), { texto: t, hecho: false, patrulla, creadoEn: Date.now(), autor: miNombre }); $("obj-txt").value = ""; };
-        window.addActividad = async () => { const t = $("act-txt").value.trim(); if (!t) return;
-            await addDoc(collection(db, "patrulla_actividades"), { texto: t, fecha: $("act-fecha").value, hora: $("act-hora").value, patrulla, creadoEn: Date.now(), autor: miNombre });
-            $("act-txt").value = ""; $("act-fecha").value = ""; $("act-hora").value = ""; };
-        window.marcar = (id, hecho) => updateDoc(doc(db, "patrulla_objetivos", id), { hecho });
-        window.borrar = (col, id) => confirm("¿Eliminar?") && deleteDoc(doc(db, col, id));
-        window.enviar = async () => { const t = $("chat-txt").value.trim(); if (!t) return;
-            await addDoc(collection(db, "jefatura_chat"), { texto: t, autor: miNombre, rol: "JT", uid, patrulla, creadoEn: Date.now() }); $("chat-txt").value = ""; };
+        /* Sin orderBy: no hacen falta índices compuestos; se ordena aquí */
+        const porPatrulla = (col) => query(collection(db, col), where("patrulla", "==", vista));
+        const rolPill = (r) => r && r !== "scout" ? `<span class="rolpill ${esc(r)}">${esc(r)}</span>` : "";
+
+        function escucharPatrulla() {
+            bajas.forEach(f => f()); bajas = [];
+            bajasAlta.forEach(f => f()); bajasAlta = [];
+
+            /* Lista de la patrulla */
+            bajas.push(onSnapshot(porPatrulla("usuarios"), (snap) => {
+                const orden = { JP: 0, SJP: 1, scout: 2 };
+                const ms = snap.docs.map(d => d.data()).sort((a, b) => (orden[a.rol] ?? 3) - (orden[b.rol] ?? 3) || String(a.nombre).localeCompare(String(b.nombre), "es"));
+                $("n-miembros").textContent = ms.length ? `· ${ms.length}` : "";
+                $("lista-miembros").innerHTML = ms.length ? ms.map(x =>
+                    `<div class="item"><span><b>${esc(x.nombre)}</b>${rolPill(x.rol)}${(x.puestos || []).length ? `<br><small style="color:#546c5f">${esc(x.puestos.join(" · "))}</small>` : ""}</span><small style="color:#546c5f">${esc(x.usuario || "")}</small></div>`).join("")
+                    : '<p class="vacio">Esta patrulla no tiene scouts todavía. Créalos en «Usuarios».</p>';
+            }, (e) => fallo("lista-miembros", e)));
+
+            /* Objetivos */
+            bajas.push(onSnapshot(porPatrulla("patrulla_objetivos"), (snap) => {
+                const ds = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.creadoEn || 0) - (a.creadoEn || 0));
+                $("lista-obj").innerHTML = ds.length ? ds.map(o =>
+                    `<div class="item ${o.hecho ? "hecho" : ""}"><input type="checkbox" ${o.hecho ? "checked" : ""} onchange="marcar('${o.id}', this.checked)" aria-label="Cumplido"><span>${esc(o.texto)}</span><button class="x" onclick="borrar('patrulla_objetivos','${o.id}')" aria-label="Eliminar">✕</button></div>`).join("")
+                    : '<p class="vacio">Sin objetivos todavía.</p>';
+            }, (e) => fallo("lista-obj", e)));
+
+            /* Actividades */
+            bajas.push(onSnapshot(porPatrulla("patrulla_actividades"), (snap) => {
+                const ds = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.fecha || "9999").localeCompare(b.fecha || "9999"));
+                $("lista-act").innerHTML = ds.length ? ds.map(a =>
+                    `<div class="item"><span><b>${esc(a.fecha || "Sin fecha")}</b> ${esc(a.hora || "")} · ${esc(a.texto)}</span><button class="x" onclick="borrar('patrulla_actividades','${a.id}')" aria-label="Eliminar">✕</button></div>`).join("")
+                    : '<p class="vacio">Sin actividades todavía.</p>';
+            }, (e) => fallo("lista-act", e)));
+
+            escucharChat();
+        }
+
+        /* ---- Chat de la patrulla elegida (patrulla o jefatura) ---- */
+        let bajaChat = null;
+        function escucharChat() {
+            if (bajaChat) bajaChat();
+            bajaChat = onSnapshot(porPatrulla(canal), (snap) => {
+                const ms = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.creadoEn || 0) - (b.creadoEn || 0)).slice(-300);
+                $("chat").innerHTML = ms.length ? ms.map(m =>
+                    `<div class="m ${m.uid === uid ? "yo" : ""}"><small><b>${esc(m.autor)}</b>${rolPill(m.rol)} ${m.creadoEn ? new Date(m.creadoEn).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""} <button class="x" style="padding:0 4px" onclick="borrar('${canal}','${m.id}')" aria-label="Borrar mensaje" title="Borrar mensaje">✕</button></small>${esc(m.texto)}</div>`).join("")
+                    : '<p class="vacio">Aún no hay mensajes en este chat.</p>';
+                $("chat").scrollTop = $("chat").scrollHeight;
+            }, (e) => fallo("chat", e));
+            bajas.push(bajaChat);
+        }
+
+        /* ---- Alta Patrulla ---- */
+        function escucharAlta() {
+            bajas.forEach(f => f()); bajas = [];
+            bajasAlta.forEach(f => f()); bajasAlta = [];
+            bajasAlta.push(onSnapshot(query(collection(db, "usuarios"), where("rol", "in", ["JP", "SJP"])), (snap) => {
+                const ms = snap.docs.map(d => d.data()).sort((a, b) => String(a.patrulla).localeCompare(String(b.patrulla)) || (a.rol === "JP" ? -1 : 1));
+                $("n-alta").textContent = ms.length ? `· ${ms.length}` : "";
+                $("lista-alta").innerHTML = ms.length ? ms.map(x =>
+                    `<div class="item"><span>${EMOJI[x.patrulla] || "⚜️"} <b>${esc(x.nombre)}</b>${rolPill(x.rol)}</span><small style="color:#546c5f">${esc(x.usuario || "")}</small></div>`).join("")
+                    : '<p class="vacio">Todavía no hay JP ni SJP. Créalos en «Usuarios».</p>';
+            }, (e) => fallo("lista-alta", e)));
+            bajasAlta.push(onSnapshot(collection(db, "alta_patrulla_chat"), (snap) => {
+                const ms = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.creadoEn || 0) - (b.creadoEn || 0)).slice(-300);
+                $("chat-alta").innerHTML = ms.length ? ms.map(m =>
+                    `<div class="m ${m.uid === uid ? "yo" : ""}"><small><b>${EMOJI[m.patrulla] ? EMOJI[m.patrulla] + " " : ""}${esc(m.autor)}</b>${rolPill(m.rol)} ${m.creadoEn ? new Date(m.creadoEn).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""} <button class="x" style="padding:0 4px" onclick="borrar('alta_patrulla_chat','${m.id}')" aria-label="Borrar mensaje" title="Borrar mensaje">✕</button></small>${esc(m.texto)}</div>`).join("")
+                    : '<p class="vacio">Aún no hay mensajes en la Alta Patrulla.</p>';
+                $("chat-alta").scrollTop = $("chat-alta").scrollHeight;
+            }, (e) => fallo("chat-alta", e)));
+        }
+
+        /* ---- Acciones ---- */
+        const intentar = async (fn) => { try { await fn(); } catch (e) { alert("No se pudo guardar: " + (e.code === "permission-denied" ? "sin permiso (publica las reglas de Firestore)." : e.message)); } };
+        window.addObjetivo = () => intentar(async () => { const t = $("obj-txt").value.trim(); if (!t) return;
+            await addDoc(collection(db, "patrulla_objetivos"), { texto: t, hecho: false, patrulla: vista, creadoEn: Date.now(), autor: miNombre }); $("obj-txt").value = ""; });
+        window.addActividad = () => intentar(async () => { const t = $("act-txt").value.trim(); if (!t) return;
+            await addDoc(collection(db, "patrulla_actividades"), { texto: t, fecha: $("act-fecha").value, hora: $("act-hora").value, patrulla: vista, creadoEn: Date.now(), autor: miNombre });
+            $("act-txt").value = ""; $("act-fecha").value = ""; $("act-hora").value = ""; });
+        window.marcar = (id, hecho) => intentar(() => updateDoc(doc(db, "patrulla_objetivos", id), { hecho }));
+        window.borrar = (col, id) => confirm("¿Eliminar?") && intentar(() => deleteDoc(doc(db, col, id)));
+        window.enviar = () => intentar(async () => { const t = $("chat-txt").value.trim(); if (!t) return;
+            await addDoc(collection(db, canal), { texto: t, autor: miNombre, rol: "JT", uid, patrulla: vista, creadoEn: Date.now() }); $("chat-txt").value = ""; });
+        window.enviarAlta = () => intentar(async () => { const t = $("alta-txt").value.trim(); if (!t) return;
+            await addDoc(collection(db, "alta_patrulla_chat"), { texto: t, autor: miNombre, rol: "JT", uid, patrulla: null, creadoEn: Date.now() }); $("alta-txt").value = ""; });
         $("chat-txt").addEventListener("keydown", e => { if (e.key === "Enter") enviar(); });
+        $("alta-txt").addEventListener("keydown", e => { if (e.key === "Enter") enviarAlta(); });
     </script>
 </body>
 </html>

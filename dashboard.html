@@ -11,12 +11,10 @@
     <nav class="sidebar" id="sidebar">
         <div class="brand">⚜️ San Francisco Javier</div>
         <a href="dashboard.html" class="menu-item active">📊 Dashboard</a>
-        <a href="miembros.html" class="menu-item">👥 Miembros</a>
         <a href="inventario.html" class="menu-item">📦 Inventario</a>
         <a href="objetivos.html" class="menu-item">🎯 Objetivos tropa</a>
         <a href="gestion-patrullas.html" class="menu-item">🐂 Patrullas</a>
         <a href="usuarios.html" class="menu-item">🔑 Usuarios</a>
-        <a href="campamento.html" class="menu-item">⛺ Campamento</a>
         <a href="calendario.html" class="menu-item">📅 Calendario</a>
         <a href="notas.html" class="menu-item">📝 Mis Notas</a>
         <div class="menu-item logout" onclick="logout()">Cerrar Sesión</div>
@@ -35,83 +33,81 @@
             </div>
         </div>
 
-        <h1>Puntuación de Patrullas</h1>
+        <h1>Resumen de la tropa</h1>
+        <div class="grid-2">
+            <div class="card" style="border-top: 5px solid var(--primary);">
+                <h2>🎯 Objetivos de la tropa</h2>
+                <p id="res-tropa" style="margin:0 0 8px; color:#546c5f;">Cargando…</p>
+                <div style="height:10px; background:#e6efe8; border-radius:99px; overflow:hidden;"><i id="barra-tropa" style="display:block; height:100%; width:0; background:#3f7d5c;"></i></div>
+                <p style="margin-top:14px"><a href="objetivos.html" style="font-weight:700; color:var(--primary);">Gestionar objetivos →</a></p>
+            </div>
+            <div class="card" style="border-top: 5px solid var(--insignia);">
+                <h2>⭐ Alta Patrulla</h2>
+                <p id="res-alta" style="margin:0 0 8px; color:#546c5f;">Cargando…</p>
+                <p style="margin-top:14px"><a href="gestion-patrullas.html" style="font-weight:700; color:var(--primary);">Abrir el chat →</a></p>
+            </div>
+        </div>
         <div class="grid-2">
             <div class="card" style="border-top: 5px solid var(--toro);">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <h2>🐂 Toro</h2>
-                    <h1 id="pts-toro" style="color: var(--toro); font-size: 3rem; margin:0;">--</h1>
-                </div>
-                <div style="margin: 15px 0; text-align:center;">
-                    <button class="btn" style="background:var(--toro)" onclick="sumar('Toro', 10)">+10</button>
-                    <button class="btn" style="background:#e57373" onclick="sumar('Toro', -5)">-5</button>
-                </div>
-                <div class="patrol-list" id="list-toro"></div>
+                <h2>🐂 Toro</h2>
+                <p id="res-toro" style="color:#546c5f;">Cargando…</p>
+                <p style="margin-top:10px"><a href="gestion-patrullas.html" style="font-weight:700; color:var(--primary);">Ver patrulla →</a> · <a href="patrulla.html?ver=toro" style="font-weight:700; color:var(--primary);">Ver como scout →</a></p>
             </div>
-
             <div class="card" style="border-top: 5px solid var(--leon);">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <h2>🦁 León</h2>
-                    <h1 id="pts-leon" style="color: var(--leon); font-size: 3rem; margin:0;">--</h1>
-                </div>
-                <div style="margin: 15px 0; text-align:center;">
-                    <button class="btn" style="background:var(--leon)" onclick="sumar('Leon', 10)">+10</button>
-                    <button class="btn" style="background:#e57373" onclick="sumar('Leon', -5)">-5</button>
-                </div>
-                <div class="patrol-list" id="list-leon"></div>
+                <h2>🦁 León</h2>
+                <p id="res-leon" style="color:#546c5f;">Cargando…</p>
+                <p style="margin-top:10px"><a href="gestion-patrullas.html" style="font-weight:700; color:var(--primary);">Ver patrulla →</a> · <a href="patrulla.html?ver=leon" style="font-weight:700; color:var(--primary);">Ver como scout →</a></p>
             </div>
         </div>
     </main>
 
     <script type="module">
-        import { doc, onSnapshot, updateDoc, increment, collection, query, orderBy, where, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { collection, query, where, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { db } from "./firebase-config.js";
         import "./auth-guard.js";
 
         window.toggleMenu = () => document.getElementById('sidebar').classList.toggle('active');
+        const $ = (id) => document.getElementById(id);
+        const err = (id) => (e) => { console.error(id, e); $(id).textContent = "No se pudo cargar" + (e.code === "permission-denied" ? " (revisa las reglas de Firestore)." : "."); };
 
-        // 1. PUNTOS Y MIEMBROS
-        const ptsRef = doc(db, "tropa", "puntuacion");
-        onSnapshot(ptsRef, (doc) => {
-            if(doc.exists()) {
-                document.getElementById('pts-toro').innerText = doc.data().Toro;
-                document.getElementById('pts-leon').innerText = doc.data().Leon;
-            }
+        // Objetivos de la tropa
+        onSnapshot(collection(db, "objetivos_tropa"), (snap) => {
+            const t = snap.size, h = snap.docs.filter(d => d.data().hecho).length;
+            $("res-tropa").textContent = t ? `${h} de ${t} cumplidos` : "Aún no hay objetivos de tropa.";
+            $("barra-tropa").style.width = (t ? Math.round(h / t * 100) : 0) + "%";
+        }, err("res-tropa"));
+
+        // Alta Patrulla (JP + SJP)
+        onSnapshot(query(collection(db, "usuarios"), where("rol", "in", ["JP", "SJP"])), (snap) => {
+            const jp = snap.docs.filter(d => d.data().rol === "JP").length, sjp = snap.size - jp;
+            $("res-alta").textContent = snap.size ? `${jp} JP y ${sjp} SJP` : "Aún no hay JP ni SJP.";
+        }, err("res-alta"));
+
+        // Resumen por patrulla
+        ["toro", "leon"].forEach((p) => {
+            let scouts = 0, hechos = 0, total = 0;
+            const pintar = () => $("res-" + p).textContent = `${scouts} scouts · objetivos de patrulla ${hechos}/${total}`;
+            onSnapshot(query(collection(db, "usuarios"), where("patrulla", "==", p)), (s) => { scouts = s.size; pintar(); }, err("res-" + p));
+            onSnapshot(query(collection(db, "patrulla_objetivos"), where("patrulla", "==", p)), (s) => { total = s.size; hechos = s.docs.filter(d => d.data().hecho).length; pintar(); }, err("res-" + p));
         });
-        window.sumar = (p, v) => updateDoc(ptsRef, { [p]: increment(v) });
 
-        // Listar miembros
-        const qMem = query(collection(db, "miembros"), orderBy("nombre"));
-        onSnapshot(qMem, (snap) => {
-            document.getElementById('list-toro').innerHTML = "";
-            document.getElementById('list-leon').innerHTML = "";
-            snap.forEach(d => {
-                const data = d.data();
-                const html = `<div class="patrol-item"><span>${data.nombre}</span><small>${data.cargo || ''}</small></div>`;
-                if(data.patrulla === 'Toro') document.getElementById('list-toro').innerHTML += html;
-                if(data.patrulla === 'Leon') document.getElementById('list-leon').innerHTML += html;
-            });
-        });
-
-        // 2. PRÓXIMA ACTIVIDAD (Lógica inteligente)
-        const today = new Date().toISOString().split('T')[0]; // Fecha de hoy YYYY-MM-DD
-        const qAct = query(collection(db, "actividades"), where("fecha", ">=", today), orderBy("fecha"), limit(1));
-        
-        onSnapshot(qAct, (snap) => {
-            if(!snap.empty) {
-                const data = snap.docs[0].data();
-                const fecha = new Date(data.fecha);
+        // Próxima actividad
+        const today = new Date().toISOString().split('T')[0];
+        onSnapshot(query(collection(db, "actividades"), where("fecha", ">=", today), limit(20)), (snap) => {
+            const docs = snap.docs.map(d => d.data()).sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
+            if (docs.length) {
+                const data = docs[0];
+                const fecha = new Date(data.fecha + "T00:00");
                 const meses = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"];
-                
-                document.getElementById('next-activity').style.display = 'flex';
-                document.getElementById('next-title').innerText = data.nombre;
-                document.getElementById('next-desc').innerText = data.horario ? `⏰ ${data.horario}` : 'Todo el día';
-                document.getElementById('next-day').innerText = fecha.getDate();
-                document.getElementById('next-month').innerText = meses[fecha.getMonth()];
+                $('next-activity').style.display = 'flex';
+                $('next-title').innerText = data.nombre || "Actividad";
+                $('next-desc').innerText = data.horario ? `⏰ ${data.horario}` : 'Todo el día';
+                $('next-day').innerText = fecha.getDate();
+                $('next-month').innerText = meses[fecha.getMonth()];
             } else {
-                document.getElementById('next-activity').style.display = 'none';
+                $('next-activity').style.display = 'none';
             }
-        });
+        }, (e) => console.error("actividades", e));
     </script>
 </body>
 </html>

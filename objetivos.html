@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Objetivos</title>
+    <title>Objetivos de tropa · Tropa San Francisco Javier</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,12 +11,10 @@
     <nav class="sidebar" id="sidebar">
         <div class="brand">⚜️ San Francisco Javier</div>
         <a href="dashboard.html" class="menu-item">📊 Dashboard</a>
-        <a href="miembros.html" class="menu-item">👥 Miembros</a>
         <a href="inventario.html" class="menu-item">📦 Inventario</a>
         <a href="objetivos.html" class="menu-item active">🎯 Objetivos tropa</a>
         <a href="gestion-patrullas.html" class="menu-item">🐂 Patrullas</a>
         <a href="usuarios.html" class="menu-item">🔑 Usuarios</a>
-        <a href="campamento.html" class="menu-item">⛺ Campamento</a>
         <a href="calendario.html" class="menu-item">📅 Calendario</a>
         <a href="notas.html" class="menu-item">📝 Mis Notas</a>
         <div class="menu-item logout" onclick="logout()">Cerrar Sesión</div>
@@ -24,7 +22,7 @@
 
     <main class="content">
         <h1>Objetivos del Curso</h1>
-        <p class="subtitle">Metas estratégicas de la Tropa</p>
+        <p class="subtitle">Metas estratégicas de la Tropa. Son comunes: las ven todas las patrullas (solo lectura) y las marcas tú.</p>
 
         <div class="card">
             <div style="display:flex; gap:10px;">
@@ -36,37 +34,40 @@
     </main>
 
     <script type="module">
-        import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { db } from "./firebase-config.js";
         import "./auth-guard.js";
 
         window.toggleMenu = () => document.getElementById('sidebar').classList.toggle('active');
+        const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+        const ms = (v) => v?.toMillis ? v.toMillis() : (typeof v === "number" ? v : 0);
         const ref = collection(db, "objetivos_tropa");
+        const intentar = async (fn) => { try { await fn(); } catch (e) { alert("No se pudo guardar: " + (e.code === "permission-denied" ? "sin permiso (publica las reglas de Firestore)." : e.message)); } };
 
-        window.addObj = async () => {
-            const txt = document.getElementById('obj-input').value;
-            if(txt) {
-                await addDoc(ref, { texto: txt, hecho: false, fecha: new Date() });
-                document.getElementById('obj-input').value = "";
-            }
-        };
+        window.addObj = () => intentar(async () => {
+            const input = document.getElementById('obj-input'), txt = input.value.trim();
+            if (!txt) return;
+            await addDoc(ref, { texto: txt, hecho: false, fecha: Date.now() });
+            input.value = "";
+        });
+        document.getElementById('obj-input').addEventListener('keydown', e => { if (e.key === 'Enter') addObj(); });
 
-        onSnapshot(query(ref, orderBy("fecha")), (snap) => {
+        // Sin orderBy: ordenamos aquí (así no se pierden objetivos antiguos sin fecha)
+        onSnapshot(ref, (snap) => {
             const div = document.getElementById('lista-objetivos');
-            div.innerHTML = "";
-            snap.forEach(d => {
-                const data = d.data();
-                div.innerHTML += `
-                    <div style="padding:15px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:10px;">
-                        <input type="checkbox" ${data.hecho ? 'checked' : ''} onchange="check('${d.id}', ${!data.hecho})" style="width:20px; height:20px;">
-                        <span style="flex:1; font-size:1.1rem; ${data.hecho ? 'text-decoration:line-through; color:#aaa' : ''}">${data.texto}</span>
-                        <button onclick="del('${d.id}')" style="background:none; border:none; cursor:pointer;">🗑️</button>
-                    </div>`;
-            });
+            const docs = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(a.fecha) - ms(b.fecha));
+            div.innerHTML = docs.length ? docs.map(data => `
+                <div style="padding:15px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:10px;">
+                    <input type="checkbox" ${data.hecho ? 'checked' : ''} onchange="check('${data.id}', this.checked)" style="width:20px; height:20px;">
+                    <span style="flex:1; font-size:1.1rem; ${data.hecho ? 'text-decoration:line-through; color:#aaa' : ''}">${esc(data.texto)}</span>
+                    <button onclick="del('${data.id}')" style="background:none; border:none; cursor:pointer;" aria-label="Eliminar">🗑️</button>
+                </div>`).join("") : '<p class="vacio">Todavía no hay objetivos de tropa.</p>';
+        }, (e) => {
+            document.getElementById('lista-objetivos').innerHTML = `<p class="vacio" style="color:#b3402f">${e.code === "permission-denied" ? "Sin permiso: publica las reglas nuevas (firestore.rules) en Firebase." : "No se pudo cargar: " + esc(e.message)}</p>`;
         });
 
-        window.check = (id, st) => updateDoc(doc(db, "objetivos_tropa", id), { hecho: st });
-        window.del = (id) => deleteDoc(doc(db, "objetivos_tropa", id));
+        window.check = (id, st) => intentar(() => updateDoc(doc(db, "objetivos_tropa", id), { hecho: st }));
+        window.del = (id) => confirm("¿Eliminar este objetivo?") && intentar(() => deleteDoc(doc(db, "objetivos_tropa", id)));
     </script>
 </body>
 </html>

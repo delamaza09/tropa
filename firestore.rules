@@ -8,6 +8,7 @@ service cloud.firestore {
     function existeYo() { return conectado() && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)); }
     function esKraal() { return existeYo() && yo().rol in ['JT', 'kraal']; }
     function esJP() { return existeYo() && yo().rol == 'JP'; }
+    function esAlta() { return existeYo() && yo().rol in ['JP', 'SJP']; }
     function suPatrulla(p) { return existeYo() && yo().patrulla == p; }
 
     // ---- Usuarios ----
@@ -17,6 +18,22 @@ service cloud.firestore {
       allow update: if esKraal()
         || (esJP() && suPatrulla(resource.data.patrulla)
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['puestos']));
+    }
+
+    // ---- Objetivos de la TROPA: comunes, los ven todos; solo los gestiona el Kraal ----
+    match /objetivos_tropa/{id} {
+      allow read: if existeYo();
+      allow write: if esKraal();
+    }
+
+    // ---- Inventario y presupuesto: cada patrulla ve el suyo (solo lectura) ----
+    match /inventario/{id} {
+      allow read: if esKraal() || (resource.data.seccion in ['toro', 'leon'] && suPatrulla(resource.data.seccion));
+      allow write: if esKraal();
+    }
+    match /presupuestos/{id} {
+      allow read: if esKraal() || suPatrulla(id);
+      allow write: if esKraal();
     }
 
     // ---- Espacio de patrulla ----
@@ -43,8 +60,15 @@ service cloud.firestore {
                     && (esKraal() || (esJP() && suPatrulla(request.resource.data.patrulla)));
       allow delete: if esKraal();
     }
+    // Chat ALTA PATRULLA: todos los JP y SJP (y la jefatura)
+    match /alta_patrulla_chat/{id} {
+      allow read: if esKraal() || esAlta();
+      allow create: if conectado() && request.resource.data.uid == request.auth.uid
+                    && (esKraal() || esAlta());
+      allow delete: if esKraal();
+    }
 
-    // ---- Todo lo demás (inventario, campamento, calendario, notas, miembros...): solo Kraal ----
+    // ---- Todo lo demás (calendario, notas, actividades...): solo Kraal ----
     match /{document=**} {
       allow read, write: if esKraal();
     }
