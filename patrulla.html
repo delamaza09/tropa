@@ -151,6 +151,70 @@ function iniciarNoLeidos() {
   new IntersectionObserver((es) => { chatVisible = es[0].isIntersecting; refrescarPuntos(); }, { threshold: 0.3 }).observe($("chat"));
   document.addEventListener("visibilitychange", refrescarPuntos);
 }
+/* ===== Inventario de la patrulla (solo lectura) ===== */
+function escucharInventario() {
+  onSnapshot(doc(db, "presupuestos", patrullaId), (s) => {
+    const t = s.exists() ? s.data().total : "";
+    $("txt-presu").textContent = t !== "" && t != null ? `💰 Presupuesto: ${t} €` : "";
+  }, () => {});
+  onSnapshot(query(collection(db, "inventario"), where("seccion", "==", patrullaId)), (snap) => {
+    const items = snap.docs.map(d => d.data()).sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), "es"));
+    const fila = (d) => `<div class="inv-fila ${d.falta ? "falta" : ""}"><span class="inv-cant">${esc(d.cantidad)}</span><span>${esc(d.nombre)}</span></div>`;
+    const bloque = (lista) => Object.keys(CATS).map(c => {
+      const xs = lista.filter(d => (d.categoria || "otros") === c);
+      return xs.length ? `<span class="cat-tag">${CATS[c]}</span>${xs.map(fila).join("")}` : "";
+    }).join("");
+    const stock = items.filter(d => !d.falta), faltas = items.filter(d => d.falta);
+    $("lista-inventario").innerHTML = items.length
+      ? (stock.length ? bloque(stock) : `<p class="vacio">Aún no hay material apuntado.</p>`)
+        + (faltas.length ? `<div class="faltas"><b>⚠️ Necesidades</b>${bloque(faltas)}</div>` : "")
+      : `<p class="vacio">La jefatura todavía no ha apuntado el inventario de la patrulla.</p>`;
+  }, (e) => fallo("lista-inventario", e));
+}
+
+/* ===== Chats: patrulla (todos), jefatura (JP) y Alta Patrulla (JP y SJP) ===== */
+window.cambiarCanal = (c) => {
+  if (c === "jefatura_chat" && !esJefe) return;
+  if (c === "alta_patrulla_chat" && !esAlta) return;
+  canal = c;
+  Object.entries(CANALES).forEach(([k, id]) => $(id).setAttribute("aria-selected", k === c));
+  escucharChat();
+  refrescarPuntos();
+};
+const VACIO = {
+  patrulla_chat: "Nadie ha escrito todavía. Rompe el hielo.",
+  jefatura_chat: "Canal privado entre el JP y la Jefatura. Escribe para empezar.",
+  alta_patrulla_chat: "Canal de todos los JP y SJP. Escribe para empezar."
+};
+function escucharChat() {
+  if (cancelarChat) cancelarChat();
+  const q = canal === "alta_patrulla_chat"
+    ? collection(db, canal)
+    : query(collection(db, canal), where("patrulla", "==", patrullaId));
+  cancelarChat = onSnapshot(q, (snap) => {
+    const box = $("chat-mensajes");
+    const msgs = snap.docs.map(d => d.data()).sort((a, b) => (a.creadoEn || 0) - (b.creadoEn || 0)).slice(-300);
+    box.innerHTML = !msgs.length
+      ? `<p class="vacio">${VACIO[canal]}</p>`
+      : msgs.map(m => {
+        const hora = m.creadoEn ? new Date(m.creadoEn).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : "";
+        const pat = canal === "alta_patrulla_chat" && PATRULLAS[m.patrulla] ? PATRULLAS[m.patrulla][1] + " " : "";
+        return `<div class="msg ${m.uid === usuarioId ? "mio" : ""}"><div class="msg-h"><b>${pat}${esc(m.autor)}</b>${m.rol && m.rol !== "scout" ? `<span class="rol ${esc(m.rol)}">${esc(m.rol)}</span>` : ""}${hora}</div><div>${esc(m.texto)}</div></div>`;
+      }).join("");
+    box.scrollTop = box.scrollHeight;
+  }, (e) => fallo("chat-mensajes", e));
+}
+window.enviarMensaje = async () => {
+  const input = $("input-mensaje"), texto = input.value.trim();
+  if (!texto) return;
+  try {
+    const ts = Date.now(), autor = yo.nombre || yo.usuario || "Scout", rol = yo.rol || "scout";
+    await addDoc(collection(db, canal), { texto, autor, rol, uid: usuarioId, patrulla: patrullaId, creadoEn: ts });
+    avisarEnvio(db, { id: claveDe(canal), canal, patrulla: canal === "alta_patrulla_chat" ? null : patrullaId, uid: usuarioId, autor, rol, ts });
+    input.value = ""; input.focus();
+  } catch (e) { alert("No se pudo enviar el mensaje: " + (e.code === "permission-denied" ? "sin permiso (revisa las reglas de Firestore)." : e.message)); }
+};
+
 function refrescarPuntos() {
   if (!nl) return;
   // El canal abierto cuenta como leído solo si la pestaña está visible y el chat está a la vista
@@ -348,69 +412,7 @@ function pintarActividades() {
   }
 }
 
-/* ===== Inventario de la patrulla (solo lectura) ===== */
-function escucharInventario() {
-  onSnapshot(doc(db, "presupuestos", patrullaId), (s) => {
-    const t = s.exists() ? s.data().total : "";
-    $("txt-presu").textContent = t !== "" && t != null ? `💰 Presupuesto: ${t} €` : "";
-  }, () => {});
-  onSnapshot(query(collection(db, "inventario"), where("seccion", "==", patrullaId)), (snap) => {
-    const items = snap.docs.map(d => d.data()).sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), "es"));
-    const fila = (d) => `<div class="inv-fila ${d.falta ? "falta" : ""}"><span class="inv-cant">${esc(d.cantidad)}</span><span>${esc(d.nombre)}</span></div>`;
-    const bloque = (lista) => Object.keys(CATS).map(c => {
-      const xs = lista.filter(d => (d.categoria || "otros") === c);
-      return xs.length ? `<span class="cat-tag">${CATS[c]}</span>${xs.map(fila).join("")}` : "";
-    }).join("");
-    const stock = items.filter(d => !d.falta), faltas = items.filter(d => d.falta);
-    $("lista-inventario").innerHTML = items.length
-      ? (stock.length ? bloque(stock) : `<p class="vacio">Aún no hay material apuntado.</p>`)
-        + (faltas.length ? `<div class="faltas"><b>⚠️ Necesidades</b>${bloque(faltas)}</div>` : "")
-      : `<p class="vacio">La jefatura todavía no ha apuntado el inventario de la patrulla.</p>`;
-  }, (e) => fallo("lista-inventario", e));
-}
 
-/* ===== Chats: patrulla (todos), jefatura (JP) y Alta Patrulla (JP y SJP) ===== */
-window.cambiarCanal = (c) => {
-  if (c === "jefatura_chat" && !esJefe) return;
-  if (c === "alta_patrulla_chat" && !esAlta) return;
-  canal = c;
-  Object.entries(CANALES).forEach(([k, id]) => $(id).setAttribute("aria-selected", k === c));
-  escucharChat();
-  refrescarPuntos();
-};
-const VACIO = {
-  patrulla_chat: "Nadie ha escrito todavía. Rompe el hielo.",
-  jefatura_chat: "Canal privado entre el JP y la Jefatura. Escribe para empezar.",
-  alta_patrulla_chat: "Canal de todos los JP y SJP. Escribe para empezar."
-};
-function escucharChat() {
-  if (cancelarChat) cancelarChat();
-  const q = canal === "alta_patrulla_chat"
-    ? collection(db, canal)
-    : query(collection(db, canal), where("patrulla", "==", patrullaId));
-  cancelarChat = onSnapshot(q, (snap) => {
-    const box = $("chat-mensajes");
-    const msgs = snap.docs.map(d => d.data()).sort((a, b) => (a.creadoEn || 0) - (b.creadoEn || 0)).slice(-300);
-    box.innerHTML = !msgs.length
-      ? `<p class="vacio">${VACIO[canal]}</p>`
-      : msgs.map(m => {
-        const hora = m.creadoEn ? new Date(m.creadoEn).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : "";
-        const pat = canal === "alta_patrulla_chat" && PATRULLAS[m.patrulla] ? PATRULLAS[m.patrulla][1] + " " : "";
-        return `<div class="msg ${m.uid === usuarioId ? "mio" : ""}"><div class="msg-h"><b>${pat}${esc(m.autor)}</b>${m.rol && m.rol !== "scout" ? `<span class="rol ${esc(m.rol)}">${esc(m.rol)}</span>` : ""}${hora}</div><div>${esc(m.texto)}</div></div>`;
-      }).join("");
-    box.scrollTop = box.scrollHeight;
-  }, (e) => fallo("chat-mensajes", e));
-}
-window.enviarMensaje = async () => {
-  const input = $("input-mensaje"), texto = input.value.trim();
-  if (!texto) return;
-  try {
-    const ts = Date.now(), autor = yo.nombre || yo.usuario || "Scout", rol = yo.rol || "scout";
-    await addDoc(collection(db, canal), { texto, autor, rol, uid: usuarioId, patrulla: patrullaId, creadoEn: ts });
-    avisarEnvio(db, { id: claveDe(canal), canal, patrulla: canal === "alta_patrulla_chat" ? null : patrullaId, uid: usuarioId, autor, rol, ts });
-    input.value = ""; input.focus();
-  } catch (e) { alert("No se pudo enviar el mensaje: " + (e.code === "permission-denied" ? "sin permiso (revisa las reglas de Firestore)." : e.message)); }
-};
 </script>
 </body>
 </html>
