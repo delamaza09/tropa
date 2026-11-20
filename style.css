@@ -96,3 +96,29 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--insignia); outl
 .aviso-ok { background: #d8ebdf; color: var(--primary-osc); border-radius: 10px; padding: 10px 12px; margin-top: 12px; display: none; }
 .aviso-ko { background: #f6e3df; color: var(--toro); border-radius: 10px; padding: 10px 12px; margin-top: 12px; display: none; }
 .aviso-ok.ver, .aviso-ko.ver { display: block; }
+
+
+/* ===== Vista móvil (jefes) ===== */
+body { height: 100vh; height: 100dvh; }
+.sidebar { overflow-y: auto; }
+.card { overflow-wrap: anywhere; }
+@media (max-width: 768px) {
+    .sidebar { height: 100dvh; width: 82%; max-width: 320px; box-shadow: 6px 0 24px rgba(0,0,0,.35); }
+    .content { padding: 64px 14px 28px; }
+    h1 { font-size: 1.5rem; }
+    h2 { font-size: 1.15rem; }
+    input, select, textarea { font-size: 16px; }
+    .btn { padding: 11px 16px; }
+    .fila-add input, .fila-add .btn { flex: 1 1 100%; }
+    .tabs-pat button { flex: 1 1 auto; }
+    .chat-box { height: 300px; }
+    .grid-2 { gap: 14px; }
+}
+
+/* ===== Mensajes sin leer ===== */
+.punto{display:inline-block;width:9px;height:9px;border-radius:50%;background:#e53935;margin-left:6px;vertical-align:middle;box-shadow:0 0 0 2px rgba(229,57,53,.3);animation:late 1.6s ease-in-out infinite}
+@keyframes late{50%{box-shadow:0 0 0 5px rgba(229,57,53,0)}}
+@media (prefers-reduced-motion:reduce){.punto{animation:none}}
+.oculto{display:none!important}
+.badge-nl{background:#e53935;color:#fff;border-radius:99px;font-size:.72rem;font-weight:800;padding:1px 8px;margin-left:8px}
+.menu-btn.tiene-nl::after{content:"";position:absolute;top:4px;right:4px;width:11px;height:11px;border-radius:50%;background:#e53935;border:2px solid #fff}

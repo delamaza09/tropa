@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Patrullas · Tropa San Francisco Javier</title>
+    <title>Patrullas · Tropa Nube</title>
     <link rel="icon" type="image/png" href="marca-agua.png">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -15,6 +15,7 @@
         <a href="inventario.html" class="menu-item">📦 Inventario</a>
         <a href="objetivos.html" class="menu-item">🎯 Objetivos tropa</a>
         <a href="gestion-patrullas.html" class="menu-item active">🐂 Patrullas</a>
+        <a href="gestion-pa.html" class="menu-item">📖 Profundiza PA</a>
         <a href="usuarios.html" class="menu-item">🔑 Usuarios</a>
         <a href="calendario.html" class="menu-item">📅 Calendario</a>
         <a href="notas.html" class="menu-item">📝 Mis Notas</a>
@@ -25,9 +26,9 @@
         <h1>🐂 Gestión de patrullas</h1>
         <p>Todo lo que hay en cada patrulla: lista, objetivos, actividades y sus chats. Y puedes ver la web tal como la ven los scouts.</p>
         <div class="tabs-pat" id="tabs">
-            <button type="button" class="on" data-p="toro">🐂 Toro</button>
-            <button type="button" data-p="leon">🦁 León</button>
-            <button type="button" data-p="alta">⭐ Alta Patrulla</button>
+            <button type="button" class="on" data-p="toro">🐂 Toro<i class="punto oculto" id="pt-toro"></i></button>
+            <button type="button" data-p="leon">🦁 León<i class="punto oculto" id="pt-leon"></i></button>
+            <button type="button" data-p="alta">⭐ Alta Patrulla<i class="punto oculto" id="pt-alta"></i></button>
         </div>
 
         <!-- ===== Vista de una patrulla ===== -->
@@ -44,8 +45,8 @@
                 <section class="card">
                     <h2>Chat</h2>
                     <div class="tabs-pat sub" id="tabs-chat">
-                        <button type="button" class="on" data-c="patrulla_chat">Patrulla</button>
-                        <button type="button" data-c="jefatura_chat">Jefatura ↔ JP</button>
+                        <button type="button" class="on" data-c="patrulla_chat">Patrulla<i class="punto oculto" id="pt-c-patrulla_chat"></i></button>
+                        <button type="button" data-c="jefatura_chat">Jefatura ↔ JP<i class="punto oculto" id="pt-c-jefatura_chat"></i></button>
                     </div>
                     <div class="chat-box" id="chat"></div>
                     <div class="fila-add"><input type="text" id="chat-txt" placeholder="Escribe un mensaje…" maxlength="500"><button class="btn btn-primary" onclick="enviar()">Enviar</button></div>
@@ -101,6 +102,7 @@
         import { collection, addDoc, onSnapshot, query, where, deleteDoc, updateDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { auth, db } from "./firebase-config.js";
+        import { crearNoLeidos, avisarEnvio } from "./no-leidos.js";
         import "./auth-guard.js";
 
         window.toggleMenu = () => document.getElementById('sidebar').classList.toggle('active');
@@ -108,7 +110,8 @@
         const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
         const EMOJI = { toro: "🐂", leon: "🦁" };
 
-        let vista = "toro", canal = "patrulla_chat", uid = null, miNombre = "Jefatura", bajas = [], bajasAlta = [];
+        let vista = "toro", canal = "patrulla_chat", uid = null, miNombre = "Jefatura", miRol = "JT", bajas = [], bajasAlta = [];
+        let nl = null; const visto = { chat: false, alta: false };
 
         const fallo = (id, e) => { console.error(id, e);
             $(id).innerHTML = `<p class="vacio error-fs">${e && e.code === "permission-denied" ? "Sin permiso: publica las reglas nuevas (firestore.rules) en Firebase." : "No se pudo cargar: " + esc(e && e.message)}</p>`; };
@@ -116,7 +119,12 @@
         onAuthStateChanged(auth, async (u) => {
             if (!u) return;
             uid = u.uid;
-            try { const s = await getDoc(doc(db, "usuarios", u.uid)); if (s.exists()) miNombre = s.data().nombre || "Jefatura"; } catch (e) {}
+            try { const s = await getDoc(doc(db, "usuarios", u.uid)); if (s.exists()) { miNombre = s.data().nombre || "Jefatura"; miRol = s.data().rol || "JT"; } } catch (e) {}
+            nl = crearNoLeidos({ db, uid, alCambiar: refrescar,
+                claves: ["patrulla_chat_toro", "jefatura_chat_toro", "patrulla_chat_leon", "jefatura_chat_leon", "alta_patrulla_chat"] });
+            new IntersectionObserver((es) => { visto.chat = es[0].isIntersecting; refrescar(); }, { threshold: 0.3 }).observe($("chat"));
+            new IntersectionObserver((es) => { visto.alta = es[0].isIntersecting; refrescar(); }, { threshold: 0.3 }).observe($("chat-alta"));
+            document.addEventListener("visibilitychange", refrescar);
             pintar();
         });
 
@@ -131,13 +139,26 @@
             const b = e.target.closest("button"); if (!b) return;
             canal = b.dataset.c;
             document.querySelectorAll("#tabs-chat button").forEach(x => x.classList.toggle("on", x === b));
-            escucharChat();
+            escucharChat(); refrescar();
         });
+
+        /* Mensajes sin leer: puntos rojos en pestañas; el chat abierto se marca leído si está a la vista */
+        function refrescar() {
+            if (!nl) return;
+            const ok = document.visibilityState === "visible";
+            if (ok && vista === "alta" && visto.alta) nl.marcarLeido("alta_patrulla_chat");
+            if (ok && vista !== "alta" && visto.chat) nl.marcarLeido(`${canal}_${vista}`);
+            const on = (id, v) => { const el = $(id); if (el) el.classList.toggle("oculto", !v); };
+            ["toro", "leon"].forEach(p => on("pt-" + p, nl.tiene("patrulla_chat_" + p) || nl.tiene("jefatura_chat_" + p)));
+            on("pt-alta", nl.tiene("alta_patrulla_chat"));
+            ["patrulla_chat", "jefatura_chat"].forEach(c => on("pt-c-" + c, vista !== "alta" && nl.tiene(`${c}_${vista}`)));
+        }
 
         function pintar() {
             const alta = vista === "alta";
             $("vista-patrulla").style.display = alta ? "none" : "";
             $("vista-alta").style.display = alta ? "" : "none";
+            refrescar();
             if (alta) { escucharAlta(); } else { $("ver-scout").href = "patrulla.html?ver=" + vista; escucharPatrulla(); }
         }
 
@@ -222,9 +243,13 @@
         window.marcar = (id, hecho) => intentar(() => updateDoc(doc(db, "patrulla_objetivos", id), { hecho }));
         window.borrar = (col, id) => confirm("¿Eliminar?") && intentar(() => deleteDoc(doc(db, col, id)));
         window.enviar = () => intentar(async () => { const t = $("chat-txt").value.trim(); if (!t) return;
-            await addDoc(collection(db, canal), { texto: t, autor: miNombre, rol: "JT", uid, patrulla: vista, creadoEn: Date.now() }); $("chat-txt").value = ""; });
+            const ts = Date.now();
+            await addDoc(collection(db, canal), { texto: t, autor: miNombre, rol: miRol, uid, patrulla: vista, creadoEn: ts });
+            avisarEnvio(db, { id: `${canal}_${vista}`, canal, patrulla: vista, uid, autor: miNombre, rol: miRol, ts }); $("chat-txt").value = ""; });
         window.enviarAlta = () => intentar(async () => { const t = $("alta-txt").value.trim(); if (!t) return;
-            await addDoc(collection(db, "alta_patrulla_chat"), { texto: t, autor: miNombre, rol: "JT", uid, patrulla: null, creadoEn: Date.now() }); $("alta-txt").value = ""; });
+            const ts = Date.now();
+            await addDoc(collection(db, "alta_patrulla_chat"), { texto: t, autor: miNombre, rol: miRol, uid, patrulla: null, creadoEn: ts });
+            avisarEnvio(db, { id: "alta_patrulla_chat", canal: "alta_patrulla_chat", patrulla: null, uid, autor: miNombre, rol: miRol, ts }); $("alta-txt").value = ""; });
         $("chat-txt").addEventListener("keydown", e => { if (e.key === "Enter") enviar(); });
         $("alta-txt").addEventListener("keydown", e => { if (e.key === "Enter") enviarAlta(); });
     </script>

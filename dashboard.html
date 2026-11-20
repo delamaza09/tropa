@@ -14,6 +14,7 @@
         <a href="inventario.html" class="menu-item">📦 Inventario</a>
         <a href="objetivos.html" class="menu-item">🎯 Objetivos tropa</a>
         <a href="gestion-patrullas.html" class="menu-item">🐂 Patrullas</a>
+        <a href="gestion-pa.html" class="menu-item">📖 Profundiza PA</a>
         <a href="usuarios.html" class="menu-item">🔑 Usuarios</a>
         <a href="calendario.html" class="menu-item">📅 Calendario</a>
         <a href="notas.html" class="menu-item">📝 Mis Notas</a>
@@ -92,7 +93,7 @@
         });
 
         // Próxima actividad
-        const today = new Date().toISOString().split('T')[0];
+        const _h = new Date(); const today = `${_h.getFullYear()}-${String(_h.getMonth() + 1).padStart(2, "0")}-${String(_h.getDate()).padStart(2, "0")}`;
         onSnapshot(query(collection(db, "actividades"), where("fecha", ">=", today), limit(20)), (snap) => {
             const docs = snap.docs.map(d => d.data()).sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
             if (docs.length) {
@@ -101,7 +102,9 @@
                 const meses = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"];
                 $('next-activity').style.display = 'flex';
                 $('next-title').innerText = data.nombre || "Actividad";
-                $('next-desc').innerText = data.horario ? `⏰ ${data.horario}` : 'Todo el día';
+                const cr = (data.cronograma || []).slice().sort((a, b) => String(a.inicio).localeCompare(String(b.inicio)));
+                const lugar = data.ubicacion && data.ubicacion !== "Sin definir" ? `📍 ${data.ubicacion} · ` : "";
+                $('next-desc').innerText = lugar + (cr[0] ? `⏰ ${cr[0].inicio} h` : 'Todo el día');
                 $('next-day').innerText = fecha.getDate();
                 $('next-month').innerText = meses[fecha.getMonth()];
             } else {

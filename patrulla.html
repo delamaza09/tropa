@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mi Patrulla · Tropa San Francisco Javier</title>
+<title>Mi Patrulla · Tropa Nube</title>
 <link rel="icon" type="image/png" href="marca-agua.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,9 +12,9 @@
 </head>
 <body>
 <header class="topbar">
-  <a href="index.html" class="brand"><span class="brand-logo"><img src="marca-agua.png" alt="Logo Scouts"></span><span>Tropa San Francisco Javier</span></a>
+  <a href="index.html" class="brand"><span class="brand-logo"><img src="marca-agua.png" alt="Logo Scouts"></span><span>Tropa Nube</span></a>
   <nav class="nav">
-    <a href="#puestos">Puestos</a><a href="#objetivos-tropa">Objetivos</a><a href="#actividades">Actividades</a><a href="#inventario">Inventario</a><a href="#chat">Chat</a>
+    <a href="#puestos">Puestos</a><a href="profundiza-pa.html">Profundiza en tu PA</a><a href="#objetivos-tropa">Objetivos</a><a href="#actividades">Actividades</a><a href="#inventario">Inventario</a><a href="#chat">Chat<i class="punto oculto" id="pt-nav"></i></a>
     <a href="progresion.html" class="principal">Mi progresión</a>
     <span class="yo"><span id="yo-nombre"></span><span id="yo-rol" class="rol"></span></span>
     <button type="button" class="btn-salir" onclick="cerrarSesion()">Cerrar sesión</button>
@@ -39,11 +39,26 @@
 </section>
 
 <main class="wrap">
+  <section id="proxima" class="proxima oculto" aria-live="polite">
+    <div>
+      <h3>🚀 Próxima actividad <span id="prox-tipo" class="etiqueta"></span></h3>
+      <h2 id="prox-titulo">—</h2>
+      <p id="prox-desc"></p>
+    </div>
+    <div class="fecha"><span id="prox-dia">--</span><small id="prox-mes">...</small></div>
+  </section>
+
   <div class="col">
     <section id="puestos" class="card">
       <div class="card-head"><h2>Puestos de acción</h2><span class="count" id="txt-puestos"></span></div>
       <p class="nota">Cada scout tiene uno o dos puestos. Los reparte el JP.</p>
       <div id="lista-puestos" class="puestos"></div>
+    </section>
+
+    <section id="profundiza" class="card pa-banner">
+      <div class="card-head"><h2>📖 Profundiza en tu PA</h2><a href="profundiza-pa.html" class="btn peq">Ver todos los puestos</a></div>
+      <p class="nota">Qué hace cada puesto, tareas, recursos y consejos para sacarle partido.</p>
+      <div id="pa-chips" class="pa-chips"></div>
     </section>
 
     <section id="objetivos-tropa" class="card">
@@ -64,7 +79,7 @@
     </section>
 
     <section id="actividades" class="card">
-      <div class="card-head"><h2>Próximas actividades</h2><span class="count">Agenda</span></div>
+      <div class="card-head"><h2>Próximas actividades</h2><span class="count">Tropa + patrulla</span></div>
       <div class="add solo-jefe oculto">
         <input type="text" id="input-actividad" placeholder="Ej: Salida del sábado, fuego de campamento…" maxlength="120" aria-label="Nueva actividad">
         <input type="date" id="input-fecha" aria-label="Fecha">
@@ -84,9 +99,9 @@
   <div class="col chat-col">
     <section id="chat" class="card chat">
       <div class="tabs" role="tablist">
-        <button type="button" class="tab" role="tab" id="tab-patrulla" aria-selected="true" onclick="cambiarCanal('patrulla_chat')">Patrulla</button>
-        <button type="button" class="tab oculto" role="tab" id="tab-jefatura" aria-selected="false" onclick="cambiarCanal('jefatura_chat')">Jefatura</button>
-        <button type="button" class="tab oculto" role="tab" id="tab-alta" aria-selected="false" onclick="cambiarCanal('alta_patrulla_chat')">Alta Patrulla</button>
+        <button type="button" class="tab" role="tab" id="tab-patrulla" aria-selected="true" onclick="cambiarCanal('patrulla_chat')">Patrulla<i class="punto oculto" id="pt-patrulla_chat"></i></button>
+        <button type="button" class="tab oculto" role="tab" id="tab-jefatura" aria-selected="false" onclick="cambiarCanal('jefatura_chat')">Jefatura<i class="punto oculto" id="pt-jefatura_chat"></i></button>
+        <button type="button" class="tab oculto" role="tab" id="tab-alta" aria-selected="false" onclick="cambiarCanal('alta_patrulla_chat')">Alta Patrulla<i class="punto oculto" id="pt-alta_patrulla_chat"></i></button>
       </div>
       <div id="chat-mensajes" class="chat-msgs" aria-live="polite"></div>
       <div class="chat-form">
@@ -100,6 +115,8 @@
 <script type="module">
 import { collection, addDoc, onSnapshot, query, where, deleteDoc, updateDoc, doc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { auth, db } from "./firebase-config.js";
+import { PA, porNombre } from "./puestos-data.js";
+import { crearNoLeidos, avisarEnvio } from "./no-leidos.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 /* ===== Ajustes: edita aquí los 7 puestos fijos ===== */
@@ -121,6 +138,32 @@ let vistaPrevia = false; // jefatura mirando la patrulla "como la ven los scouts
 let miembros = [], canal = "patrulla_chat", cancelarChat = null, iniciado = false;
 
 window.cerrarSesion = () => signOut(auth).then(irAlLogin);
+
+/* ===== Mensajes sin leer ===== */
+let nl = null, chatVisible = false, tituloBase = "";
+const claveDe = (c) => c === "alta_patrulla_chat" ? c : `${c}_${patrullaId}`;
+function iniciarNoLeidos() {
+  if (vistaPrevia) return; // la jefatura mirando "como scout" no cambia sus lecturas
+  const claves = [claveDe("patrulla_chat")];
+  if (esJefe) claves.push(claveDe("jefatura_chat"));
+  if (esAlta) claves.push(claveDe("alta_patrulla_chat"));
+  nl = crearNoLeidos({ db, uid: usuarioId, claves, alCambiar: refrescarPuntos });
+  new IntersectionObserver((es) => { chatVisible = es[0].isIntersecting; refrescarPuntos(); }, { threshold: 0.3 }).observe($("chat"));
+  document.addEventListener("visibilitychange", refrescarPuntos);
+}
+function refrescarPuntos() {
+  if (!nl) return;
+  // El canal abierto cuenta como leído solo si la pestaña está visible y el chat está a la vista
+  if (document.visibilityState === "visible" && chatVisible) nl.marcarLeido(claveDe(canal));
+  let total = 0;
+  Object.keys(CANALES).forEach((c) => {
+    const n = nl.tiene(claveDe(c));
+    const el = $("pt-" + c); if (el) el.classList.toggle("oculto", !n);
+    if (n) total++;
+  });
+  $("pt-nav").classList.toggle("oculto", total === 0);
+  document.title = (total ? `(${total}) ` : "") + tituloBase;
+}
 
 /* Si Firestore rechaza una consulta lo mostramos en pantalla en vez de fallar en silencio */
 function fallo(id, e) {
@@ -156,7 +199,8 @@ function iniciar() {
   const [nombrePatrulla, emoji] = PATRULLAS[patrullaId] || ["Mi patrulla", "⚜️"];
   $("titulo-patrulla").textContent = nombrePatrulla;
   $("emoji-patrulla").textContent = emoji;
-  document.title = `${nombrePatrulla} · Tropa San Francisco Javier`;
+  tituloBase = `${nombrePatrulla} · Tropa Nube`;
+  document.title = tituloBase;
   $("yo-nombre").textContent = yo.nombre || yo.usuario || "";
   $("yo-rol").textContent = yo.rol || "scout";
   $("yo-rol").className = "rol " + (yo.rol || "scout");
@@ -166,6 +210,7 @@ function iniciar() {
     $("tab-jefatura").classList.remove("oculto");
   }
   if (esAlta) $("tab-alta").classList.remove("oculto");
+  iniciarNoLeidos();
   escucharMiembros(); escucharObjetivosTropa(); escucharObjetivos(); escucharActividades(); escucharInventario(); escucharChat();
   [["input-objetivo", () => agregarObjetivo()], ["input-actividad", () => agregarActividad()]]
     .forEach(([id, fn]) => $(id).addEventListener("keydown", e => { if (e.key === "Enter") fn(); }));
@@ -177,6 +222,11 @@ function escucharMiembros() {
   onSnapshot(query(collection(db, "usuarios"), where("patrulla", "==", patrullaId)), (snap) => {
     miembros = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     $("stat-miembros").textContent = miembros.length;
+    const mio = miembros.find(m => m.id === usuarioId);
+    const mios = (mio?.puestos || []).map(porNombre).filter(Boolean);
+    $("pa-chips").innerHTML = mios.length
+      ? mios.map(p => `<a class="pa-chip tuyo" href="pa.html?p=${p.slug}">${p.emoji} ${esc(p.nombre)}<small>Tu puesto</small></a>`).join("")
+      : (vistaPrevia ? "" : `<span class="sin">Todavía no tienes puesto. Cuando el JP te lo asigne, aparecerá aquí.</span>`);
     const cubiertos = PUESTOS.filter(p => miembros.some(m => (m.puestos || []).includes(p))).length;
     $("txt-puestos").textContent = `${cubiertos} de ${PUESTOS.length} cubiertos`;
     $("lista-puestos").innerHTML = PUESTOS.map((p, i) => {
@@ -255,17 +305,47 @@ window.agregarActividad = async () => {
     input.value = ""; $("input-fecha").value = ""; $("input-hora").value = ""; input.focus();
   } catch (e) { alert("No se pudo añadir la actividad: " + e.message); }
 };
+const hoy = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const MESES = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"];
+let actPatrulla = [], actTropa = [];
+
+/* Agenda = actividades de la patrulla + calendario de la jefatura (colección "actividades") */
 function escucharActividades() {
   onSnapshot(consulta("patrulla_actividades"), (snap) => {
-    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => (a.fecha || "9999").localeCompare(b.fecha || "9999") || (a.hora || "").localeCompare(b.hora || ""));
-    $("lista-actividades").innerHTML = docs.length ? docs.map(d => {
-      const f = d.fecha ? new Date(d.fecha + "T00:00") : null;
-      const dia = f ? `<div class="dia">${f.getDate()}<small>${f.toLocaleDateString("es-ES", { month: "short" })}</small></div>` : `<div class="dia sinf">—<small>sin fecha</small></div>`;
-      return `<div class="act">${dia}<div class="t">${esc(d.texto)}${d.hora ? `<small class="h">${esc(d.hora)} h</small>` : ""}</div>${borrar("patrulla_actividades", d.id)}</div>`;
-    }).join("") : `<p class="vacio">No hay actividades a la vista. ${esJefe ? "Añade la próxima salida o reunión." : "El JP o el JT las publicarán aquí."}</p>`;
-    $("stat-actividades").textContent = docs.length;
+    actPatrulla = snap.docs.map(d => ({ id: d.id, ...d.data(), tropa: false }));
+    pintarActividades();
   }, (e) => fallo("lista-actividades", e));
+  onSnapshot(query(collection(db, "actividades"), where("fecha", ">=", hoy())), (snap) => {
+    actTropa = snap.docs.map(d => {
+      const x = d.data();
+      const cr = (x.cronograma || []).slice().sort((a, b) => String(a.inicio).localeCompare(String(b.inicio)));
+      return { id: d.id, texto: x.nombre, fecha: x.fecha, hora: cr[0]?.inicio || "", lugar: x.ubicacion && x.ubicacion !== "Sin definir" ? x.ubicacion : "", cronograma: cr, tropa: true };
+    });
+    pintarActividades();
+  }, (e) => console.error("actividades (calendario de tropa)", e));
+}
+function pintarActividades() {
+  const docs = [...actPatrulla, ...actTropa]
+    .sort((a, b) => (a.fecha || "9999").localeCompare(b.fecha || "9999") || (a.hora || "").localeCompare(b.hora || ""));
+  $("lista-actividades").innerHTML = docs.length ? docs.map(d => {
+    const f = d.fecha ? new Date(d.fecha + "T00:00") : null;
+    const dia = f ? `<div class="dia">${f.getDate()}<small>${f.toLocaleDateString("es-ES", { month: "short" })}</small></div>` : `<div class="dia sinf">—<small>sin fecha</small></div>`;
+    const crono = (d.cronograma || []).map(c => `<small class="crono">${esc(c.inicio)}–${esc(c.fin)} · ${esc(c.actividad)}</small>`).join("");
+    return `<div class="act">${dia}<div class="t">${esc(d.texto)}<span class="etiqueta ${d.tropa ? "" : "pat"}">${d.tropa ? "Tropa" : "Patrulla"}</span>${d.lugar ? `<small class="h">📍 ${esc(d.lugar)}</small>` : ""}${d.hora ? `<small class="h">${esc(d.hora)} h</small>` : ""}${crono}</div>${d.tropa ? "" : borrar("patrulla_actividades", d.id)}</div>`;
+  }).join("") : `<p class="vacio">No hay actividades a la vista. ${esJefe ? "Añade la próxima salida o reunión." : "El JP o el JT las publicarán aquí."}</p>`;
+  $("stat-actividades").textContent = docs.length;
+
+  /* Aviso de próxima actividad (la más cercana de las dos agendas) */
+  const prox = docs.find(d => d.fecha && d.fecha >= hoy());
+  $("proxima").classList.toggle("oculto", !prox);
+  if (prox) {
+    const f = new Date(prox.fecha + "T00:00");
+    $("prox-tipo").textContent = prox.tropa ? "Tropa" : "Patrulla";
+    $("prox-titulo").textContent = prox.texto || "Actividad";
+    $("prox-desc").textContent = [prox.lugar ? "📍 " + prox.lugar : "", prox.hora ? "⏰ " + prox.hora + " h" : "Todo el día"].filter(Boolean).join(" · ");
+    $("prox-dia").textContent = f.getDate();
+    $("prox-mes").textContent = MESES[f.getMonth()];
+  }
 }
 
 /* ===== Inventario de la patrulla (solo lectura) ===== */
@@ -296,6 +376,7 @@ window.cambiarCanal = (c) => {
   canal = c;
   Object.entries(CANALES).forEach(([k, id]) => $(id).setAttribute("aria-selected", k === c));
   escucharChat();
+  refrescarPuntos();
 };
 const VACIO = {
   patrulla_chat: "Nadie ha escrito todavía. Rompe el hielo.",
@@ -324,7 +405,9 @@ window.enviarMensaje = async () => {
   const input = $("input-mensaje"), texto = input.value.trim();
   if (!texto) return;
   try {
-    await addDoc(collection(db, canal), { texto, autor: yo.nombre || yo.usuario || "Scout", rol: yo.rol || "scout", uid: usuarioId, patrulla: patrullaId, creadoEn: Date.now() });
+    const ts = Date.now(), autor = yo.nombre || yo.usuario || "Scout", rol = yo.rol || "scout";
+    await addDoc(collection(db, canal), { texto, autor, rol, uid: usuarioId, patrulla: patrullaId, creadoEn: ts });
+    avisarEnvio(db, { id: claveDe(canal), canal, patrulla: canal === "alta_patrulla_chat" ? null : patrullaId, uid: usuarioId, autor, rol, ts });
     input.value = ""; input.focus();
   } catch (e) { alert("No se pudo enviar el mensaje: " + (e.code === "permission-denied" ? "sin permiso (revisa las reglas de Firestore)." : e.message)); }
 };

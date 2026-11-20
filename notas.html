@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mis Notas - Tropa San Francisco Javier</title>
+    <title>Mis Notas - Tropa Nube</title>
     <link rel="stylesheet" href="style.css">
     <link rel="icon" type="image/png" href="https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Fleur_de_lis_white.svg/1024px-Fleur_de_lis_white.svg.png">
     <style>
@@ -26,12 +26,14 @@
     </style>
 </head>
 <body>
-    <nav class="sidebar">
+    <button class="menu-btn" onclick="toggleMenu()" aria-label="Menú">☰</button>
+    <nav class="sidebar" id="sidebar">
         <div class="brand">⚜️ San Francisco Javier</div>
         <a href="dashboard.html" class="menu-item">📊 Dashboard</a>
         <a href="inventario.html" class="menu-item">📦 Inventario</a>
         <a href="objetivos.html" class="menu-item">🎯 Objetivos tropa</a>
         <a href="gestion-patrullas.html" class="menu-item">🐂 Patrullas</a>
+        <a href="gestion-pa.html" class="menu-item">📖 Profundiza PA</a>
         <a href="usuarios.html" class="menu-item">🔑 Usuarios</a>
         <a href="calendario.html" class="menu-item">📅 Calendario</a>
         <a href="notas.html" class="menu-item active">📝 Mis Notas</a>
@@ -46,6 +48,7 @@
     </main>
 
     <script type="module">
+        window.toggleMenu = () => document.getElementById('sidebar').classList.toggle('active');
         import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { db } from "./firebase-config.js";
         import "./auth-guard.js";

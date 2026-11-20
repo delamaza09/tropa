@@ -11,17 +11,56 @@ service cloud.firestore {
     function esAlta() { return existeYo() && yo().rol in ['JP', 'SJP']; }
     function suPatrulla(p) { return existeYo() && yo().patrulla == p; }
 
+    // Un mensaje de chat válido: campos esperados, texto de 1 a 500 caracteres, el rol y el uid son los del que escribe
+    function mensajeOk(d) {
+      return d.keys().hasOnly(['texto', 'autor', 'rol', 'uid', 'patrulla', 'creadoEn'])
+        && d.keys().hasAll(['texto', 'autor', 'rol', 'uid', 'creadoEn'])
+        && d.texto is string && d.texto.size() > 0 && d.texto.size() <= 500
+        && d.autor is string && d.autor.size() <= 60
+        && d.rol == yo().rol
+        && d.uid == request.auth.uid
+        && d.creadoEn is number;
+    }
+    // Quién puede ver/actualizar el aviso de "último mensaje" de cada chat
+    function puedeEstado(d) {
+      return esKraal()
+        || (d.canal == 'patrulla_chat' && suPatrulla(d.patrulla))
+        || (d.canal == 'jefatura_chat' && esJP() && suPatrulla(d.patrulla))
+        || (d.canal == 'alta_patrulla_chat' && esAlta());
+    }
+    function idEstadoOk(id, d) {
+      return (d.canal == 'alta_patrulla_chat' && id == 'alta_patrulla_chat')
+        || (d.canal != 'alta_patrulla_chat' && id == d.canal + '_' + d.patrulla);
+    }
+
     // ---- Usuarios ----
     match /usuarios/{uid} {
       allow read: if conectado() && (request.auth.uid == uid || esKraal() || suPatrulla(resource.data.patrulla));
       allow create, delete: if esKraal();
       allow update: if esKraal()
         || (esJP() && suPatrulla(resource.data.patrulla)
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['puestos']));
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['puestos'])
+            && request.resource.data.puestos is list && request.resource.data.puestos.size() <= 2);
     }
 
     // ---- Objetivos de la TROPA: comunes, los ven todos; solo los gestiona el Kraal ----
     match /objetivos_tropa/{id} {
+      allow read: if existeYo();
+      allow write: if esKraal();
+    }
+
+    // ---- Profundiza en tu PA: contenido de cada puesto de acción (lo ven todos, lo edita el Kraal) ----
+    match /pa_puestos/{id} {
+      allow read: if existeYo();
+      allow write: if esKraal();
+    }
+    match /pa_items/{id} {
+      allow read: if existeYo();
+      allow write: if esKraal();
+    }
+
+    // ---- Calendario de la jefatura (actividades de tropa): lo ven todos las patrullas, solo lo edita el Kraal ----
+    match /actividades/{id} {
       allow read: if existeYo();
       allow write: if esKraal();
     }
@@ -40,32 +79,47 @@ service cloud.firestore {
     match /patrulla_objetivos/{id} {
       allow read: if esKraal() || suPatrulla(resource.data.patrulla);
       allow create: if esKraal() || (esJP() && suPatrulla(request.resource.data.patrulla));
-      allow update, delete: if esKraal() || (esJP() && suPatrulla(resource.data.patrulla));
+      allow update: if esKraal() || (esJP() && suPatrulla(resource.data.patrulla)
+                                     && request.resource.data.patrulla == resource.data.patrulla);
+      allow delete: if esKraal() || (esJP() && suPatrulla(resource.data.patrulla));
     }
     match /patrulla_actividades/{id} {
       allow read: if esKraal() || suPatrulla(resource.data.patrulla);
       allow create: if esKraal() || (esJP() && suPatrulla(request.resource.data.patrulla));
-      allow update, delete: if esKraal() || (esJP() && suPatrulla(resource.data.patrulla));
+      allow update: if esKraal() || (esJP() && suPatrulla(resource.data.patrulla)
+                                     && request.resource.data.patrulla == resource.data.patrulla);
+      allow delete: if esKraal() || (esJP() && suPatrulla(resource.data.patrulla));
     }
     match /patrulla_chat/{id} {
       allow read: if esKraal() || suPatrulla(resource.data.patrulla);
-      allow create: if conectado() && request.resource.data.uid == request.auth.uid
+      allow create: if conectado() && mensajeOk(request.resource.data)
                     && (esKraal() || suPatrulla(request.resource.data.patrulla));
       allow delete: if esKraal();
     }
     // Chat privado JP <-> Jefatura: los scouts normales no lo ven
     match /jefatura_chat/{id} {
       allow read: if esKraal() || (esJP() && suPatrulla(resource.data.patrulla));
-      allow create: if conectado() && request.resource.data.uid == request.auth.uid
+      allow create: if conectado() && mensajeOk(request.resource.data)
                     && (esKraal() || (esJP() && suPatrulla(request.resource.data.patrulla)));
       allow delete: if esKraal();
     }
     // Chat ALTA PATRULLA: todos los JP y SJP (y la jefatura)
     match /alta_patrulla_chat/{id} {
       allow read: if esKraal() || esAlta();
-      allow create: if conectado() && request.resource.data.uid == request.auth.uid
-                    && (esKraal() || esAlta());
+      allow create: if conectado() && mensajeOk(request.resource.data)
+                    && (esKraal() || (esAlta() && (request.resource.data.patrulla == null || request.resource.data.patrulla == yo().patrulla)));
       allow delete: if esKraal();
+    }
+
+    // ---- Mensajes sin leer ----
+    match /chat_estado/{id} {
+      allow read: if existeYo() && (resource == null || puedeEstado(resource.data));
+      allow create, update: if conectado() && request.resource.data.uid == request.auth.uid
+                            && request.resource.data.ultimo is number
+                            && idEstadoOk(id, request.resource.data) && puedeEstado(request.resource.data);
+    }
+    match /lecturas/{uid} {
+      allow read, write: if existeYo() && request.auth.uid == uid;
     }
 
     // ---- Todo lo demás (calendario, notas, actividades...): solo Kraal ----

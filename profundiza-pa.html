@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profundiza en tu PA · Tropa Nube</title>
+<link rel="icon" type="image/png" href="marca-agua.png">
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="scout.css">
+</head>
+<body>
+<header class="topbar">
+  <a href="patrulla.html" id="home" class="brand"><span class="brand-logo"><img src="marca-agua.png" alt="Logo Scouts"></span><span>Tropa Nube</span></a>
+  <nav class="nav"><a href="patrulla.html" id="volver">← Mi patrulla</a></nav>
+</header>
+<main class="pagina">
+  <h1>📖 Profundiza en tu PA</h1>
+  <p class="sub">Entra en cada puesto de acción para ver qué hace, sus tareas, recursos y consejos.</p>
+  <div id="grid" class="pa-grid"></div>
+</main>
+<script type="module">
+import { auth, db } from "./firebase-config.js";
+import { PA } from "./puestos-data.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { collection, doc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let mios = [], descr = {};
+
+function pintar() {
+  $("grid").innerHTML = PA.map(p => {
+    const mio = mios.includes(p.nombre);
+    return `<a class="pa-card ${mio ? "mio" : ""}" href="pa.html?p=${p.slug}">
+      <span class="em">${p.emoji}</span><h2>${esc(p.nombre)}</h2>
+      <p>${esc(descr[p.slug] || p.resumen)}</p>${mio ? '<span class="tuyo">Tu puesto</span>' : ""}</a>`;
+  }).join("");
+}
+pintar();
+
+onAuthStateChanged(auth, async (u) => {
+  if (!u) { window.location.href = "acceso-patrulla.html"; return; }
+  try {
+    const s = await getDoc(doc(db, "usuarios", u.uid));
+    if (!s.exists()) { window.location.href = "acceso-patrulla.html"; return; }
+    const d = s.data(); mios = d.puestos || [];
+    if (d.rol === "JT" || d.rol === "kraal") { $("volver").textContent = "← Panel de jefes"; $("volver").href = "gestion-pa.html"; $("home").href = "dashboard.html"; }
+    pintar();
+  } catch (e) { console.error(e); }
+  onSnapshot(collection(db, "pa_puestos"), (snap) => {
+    descr = {}; snap.forEach(x => { if (x.data().descripcion) descr[x.id] = x.data().descripcion; });
+    pintar();
+  }, (e) => console.error("pa_puestos", e));
+});
+</script>
+</body>
+</html>

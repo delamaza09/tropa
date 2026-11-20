@@ -19,3 +19,23 @@ Panel Kraal > Patrullas: lista, objetivos, actividades y chats de cada patrulla,
 "Ver como la ven los scouts" (patrulla.html?ver=toro).
 Quitado: puntuación, fichas de miembros (miembros.html) y campamento (campamento.html).
 La antigua pantalla de login del Kraal está guardada como _login_kraal_antiguo.html (puedes borrarla).
+
+Calendario conectado: las actividades que crea la jefatura en calendario.html (colección "actividades") salen en la agenda de cada
+patrulla (etiqueta "Tropa") y alimentan el aviso "Próxima actividad" al inicio de patrulla.html. Las actividades que crean los JP
+salen en el calendario de la jefatura (solo lectura). Hay que volver a publicar firestore.rules.
+
+Profundiza en tu PA: patrulla.html tiene una tarjeta bajo "Puestos de acción" que lleva a profundiza-pa.html (los 7 puestos) y de ahí a
+pa.html?p=<puesto> (guia, subguia, tesorero, secretario, intendente, sanitario, material). El contenido (descripción, qué hace,
+tareas, recursos, consejos) se edita en el panel de jefes: Profundiza PA (gestion-pa.html). Colecciones nuevas: pa_puestos y pa_items.
+Los puestos y sus emojis/resúmenes por defecto están en puestos-data.js (mantén los nombres iguales a PUESTOS de patrulla.html).
+Vista móvil: añadido el botón de menú a Inventario y Notas (no lo tenían) y ajustes responsive en style.css y scout.css.
+
+Mensajes sin leer: no-leidos.js. Cada chat guarda un aviso pequeño en "chat_estado" y cada persona su última lectura en "lecturas/<uid>".
+Punto rojo en las pestañas de chat, en "Chat" del menú superior y en el título de la pestaña del navegador; en el panel de jefes
+sale un contador en "Patrullas" (y un punto en el botón de menú del móvil). Se marca leído solo cuando el chat está a la vista.
+Seguridad (esta versión): las reglas validan los mensajes (rol y uid reales, 1-500 caracteres), el JP no puede mover objetivos o
+actividades a otra patrulla ni asignar más de 2 puestos. vercel.json añade cabeceras de seguridad; la CSP va en modo
+"Report-Only": abre la consola del navegador, comprueba que no avisa de nada que rompa la web y después cambia
+"Content-Security-Policy-Report-Only" por "Content-Security-Policy".
+Recomendado en Firebase/Google Cloud: restringir la API key a tu dominio (Credenciales > Restricciones de HTTP referrer),
+revisar Authentication > Configuración > Dominios autorizados, poner una alerta de presupuesto y borrar _login_kraal_antiguo.html.

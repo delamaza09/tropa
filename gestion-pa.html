@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profundiza PA · Tropa Nube</title>
+    <link rel="icon" type="image/png" href="marca-agua.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <button class="menu-btn" onclick="toggleMenu()" aria-label="Menú">☰</button>
+    <nav class="sidebar" id="sidebar">
+        <div class="brand">⚜️ San Francisco Javier</div>
+        <a href="dashboard.html" class="menu-item">📊 Dashboard</a>
+        <a href="inventario.html" class="menu-item">📦 Inventario</a>
+        <a href="objetivos.html" class="menu-item">🎯 Objetivos tropa</a>
+        <a href="gestion-patrullas.html" class="menu-item">🐂 Patrullas</a>
+        <a href="gestion-pa.html" class="menu-item active">📖 Profundiza PA</a>
+        <a href="usuarios.html" class="menu-item">🔑 Usuarios</a>
+        <a href="calendario.html" class="menu-item">📅 Calendario</a>
+        <a href="notas.html" class="menu-item">📝 Mis Notas</a>
+        <div class="menu-item logout" onclick="logout()">Cerrar Sesión</div>
+    </nav>
+
+    <main class="content">
+        <h1>📖 Profundiza en tu PA</h1>
+        <p>Edita lo que ven los scouts en la página de cada puesto de acción. Los cambios se ven al momento.</p>
+        <div class="tabs-pat" id="tabs"></div>
+
+        <div class="grid-2">
+            <section class="card">
+                <h2 id="t-puesto">Puesto</h2>
+                <label for="descr" style="font-weight:700; font-size:.85rem">Descripción (sale bajo el título)</label>
+                <textarea id="descr" rows="3" maxlength="400" placeholder="Explica en pocas líneas qué es este puesto…"></textarea>
+                <div class="fila-add" style="margin-top:10px">
+                    <button class="btn btn-primary" onclick="guardarDescr()">Guardar descripción</button>
+                    <a class="btn btn-primary" id="ver" href="#" target="_blank" rel="noopener" style="text-decoration:none; text-align:center">👁️ Ver la página</a>
+                </div>
+                <div id="ok" class="aviso-ok" role="status"></div>
+            </section>
+
+            <section class="card">
+                <h2>Añadir contenido</h2>
+                <label for="tipo" style="font-weight:700; font-size:.85rem">Apartado</label>
+                <select id="tipo"></select>
+                <label for="texto" style="font-weight:700; font-size:.85rem; display:block; margin-top:10px">Texto</label>
+                <textarea id="texto" rows="3" maxlength="500" placeholder="Ej: Revisa el botiquín antes de cada salida"></textarea>
+                <label for="enlace" style="font-weight:700; font-size:.85rem; display:block; margin-top:10px">Enlace (opcional, empieza por https://)</label>
+                <input type="text" id="enlace" placeholder="https://…" autocapitalize="none">
+                <button class="btn btn-primary" style="margin-top:12px" onclick="anadir()">Añadir</button>
+            </section>
+        </div>
+
+        <section class="card">
+            <h2>Contenido de este puesto</h2>
+            <div id="lista"></div>
+        </section>
+    </main>
+
+    <script type="module">
+        import { collection, addDoc, onSnapshot, query, where, deleteDoc, updateDoc, setDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { db } from "./firebase-config.js";
+        import { PA, TIPOS, porSlug } from "./puestos-data.js";
+        import "./auth-guard.js";
+
+        window.toggleMenu = () => document.getElementById('sidebar').classList.toggle('active');
+        const $ = (id) => document.getElementById(id);
+        const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+        const intentar = async (fn) => { try { await fn(); } catch (e) { alert("No se pudo guardar: " + (e.code === "permission-denied" ? "sin permiso (publica las reglas de Firestore)." : e.message)); } };
+
+        let actual = porSlug(new URLSearchParams(location.search).get("p")) || PA[0], bajas = [];
+
+        $("tabs").innerHTML = PA.map(p => `<button type="button" data-p="${p.slug}" class="${p === actual ? "on" : ""}">${p.emoji} ${esc(p.nombre)}</button>`).join("");
+        $("tipo").innerHTML = TIPOS.map(t => `<option value="${t.id}">${t.icono} ${t.titulo}</option>`).join("");
+        $("tabs").addEventListener("click", (e) => {
+            const b = e.target.closest("button"); if (!b) return;
+            actual = porSlug(b.dataset.p);
+            document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("on", x === b));
+            cargar();
+        });
+
+        function cargar() {
+            bajas.forEach(f => f()); bajas = [];
+            $("t-puesto").textContent = `${actual.emoji} ${actual.nombre}`;
+            $("ver").href = "pa.html?p=" + actual.slug;
+            $("descr").value = ""; $("descr").placeholder = actual.resumen;
+            bajas.push(onSnapshot(doc(db, "pa_puestos", actual.slug), (s) => {
+                if (document.activeElement !== $("descr")) $("descr").value = s.exists() ? (s.data().descripcion || "") : "";
+            }, (e) => console.error(e)));
+            bajas.push(onSnapshot(query(collection(db, "pa_items"), where("puesto", "==", actual.slug)), (snap) => {
+                const items = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.creadoEn || 0) - (b.creadoEn || 0));
+                $("lista").innerHTML = items.length ? TIPOS.map(t => {
+                    const xs = items.filter(x => x.tipo === t.id); if (!xs.length) return "";
+                    return `<h3 style="margin:14px 0 6px">${t.icono} ${t.titulo}</h3>` + xs.map(x =>
+                        `<div class="item"><span>${esc(x.texto)}${x.enlace ? `<br><small style="color:#546c5f">🔗 ${esc(x.enlace)}</small>` : ""}</span><button class="x" onclick="editar('${x.id}')" aria-label="Editar" title="Editar">✎</button><button class="x" onclick="borrar('${x.id}')" aria-label="Eliminar" title="Eliminar">✕</button></div>`).join("");
+                }).join("") : '<p class="vacio">Todavía no hay contenido en este puesto. Añade el primero.</p>';
+                window._items = Object.fromEntries(items.map(x => [x.id, x]));
+            }, (e) => { $("lista").innerHTML = `<p class="vacio" style="color:#b3402f">${e.code === "permission-denied" ? "Sin permiso: publica las reglas nuevas (firestore.rules)." : esc(e.message)}</p>`; }));
+        }
+
+        window.guardarDescr = () => intentar(async () => {
+            await setDoc(doc(db, "pa_puestos", actual.slug), { descripcion: $("descr").value.trim(), actualizado: Date.now() }, { merge: true });
+            $("ok").textContent = "Descripción guardada."; $("ok").classList.add("ver"); setTimeout(() => $("ok").classList.remove("ver"), 2500);
+        });
+        window.anadir = () => intentar(async () => {
+            const texto = $("texto").value.trim(); if (!texto) return;
+            const enlace = $("enlace").value.trim();
+            if (enlace && !/^https?:\/\//i.test(enlace)) return alert("El enlace debe empezar por http:// o https://");
+            await addDoc(collection(db, "pa_items"), { puesto: actual.slug, tipo: $("tipo").value, texto, enlace, creadoEn: Date.now() });
+            $("texto").value = ""; $("enlace").value = "";
+        });
+        window.editar = (id) => intentar(async () => {
+            const x = window._items[id]; if (!x) return;
+            const t = prompt("Editar texto:", x.texto); if (t === null || !t.trim()) return;
+            const e = prompt("Enlace (vacío = sin enlace):", x.enlace || ""); if (e === null) return;
+            if (e.trim() && !/^https?:\/\//i.test(e.trim())) return alert("El enlace debe empezar por http:// o https://");
+            await updateDoc(doc(db, "pa_items", id), { texto: t.trim(), enlace: e.trim() });
+        });
+        window.borrar = (id) => confirm("¿Eliminar este contenido?") && intentar(() => deleteDoc(doc(db, "pa_items", id)));
+        cargar();
+    </script>
+</body>
+</html>

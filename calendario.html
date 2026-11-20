@@ -37,6 +37,7 @@
         <a href="inventario.html" class="menu-item">📦 Inventario</a>
         <a href="objetivos.html" class="menu-item">🎯 Objetivos tropa</a>
         <a href="gestion-patrullas.html" class="menu-item">🐂 Patrullas</a>
+        <a href="gestion-pa.html" class="menu-item">📖 Profundiza PA</a>
         <a href="usuarios.html" class="menu-item">🔑 Usuarios</a>
         <a href="calendario.html" class="menu-item active">📅 Calendario</a>
         <a href="notas.html" class="menu-item">📝 Mis Notas</a>
@@ -56,6 +57,12 @@
             </div>
         </div>
 
+        <div class="card" style="border-left:5px solid #f2c14e;">
+            <h3>🐂🦁 Actividades de las patrullas</h3>
+            <p style="color:#546c5f; font-size:.9rem; margin:0 0 10px;">Las que ponen los JP en su agenda. Las actividades de arriba las ven todas las patrullas en su inicio.</p>
+            <div id="lista-pat"></div>
+        </div>
+
         <div id="lista-eventos"></div>
     </main>
 
@@ -65,6 +72,7 @@
         import "./auth-guard.js";
 
         window.toggleMenu = () => document.getElementById('sidebar').classList.toggle('active');
+        const esc = (s) => String(s ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 
         // FUNCIÓN DESPLEGABLE
         window.toggleCard = (id) => {
@@ -78,6 +86,18 @@
                 icon.classList.add('rotated');
             }
         };
+
+        // 0. ACTIVIDADES DE LAS PATRULLAS (solo lectura)
+        const _h = new Date(); const hoyLocal = `${_h.getFullYear()}-${String(_h.getMonth() + 1).padStart(2, "0")}-${String(_h.getDate()).padStart(2, "0")}`;
+        const escP = (s) => String(s ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+        onSnapshot(collection(db, "patrulla_actividades"), (snap) => {
+            const emoji = { toro: "🐂", leon: "🦁" };
+            const ds = snap.docs.map(x => x.data()).filter(x => x.fecha && x.fecha >= hoyLocal)
+                .sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.hora || "").localeCompare(b.hora || ""));
+            document.getElementById('lista-pat').innerHTML = ds.length ? ds.map(x =>
+                `<div style="padding:8px 0; border-bottom:1px solid #eee;">${emoji[x.patrulla] || "⚜️"} <b>${escP(x.fecha)}</b> ${escP(x.hora || "")} · ${escP(x.texto)}</div>`).join("")
+                : '<p style="color:#546c5f; margin:0;">Ninguna patrulla tiene actividades próximas.</p>';
+        }, (e) => { document.getElementById('lista-pat').textContent = "No se pudo cargar las actividades de patrulla."; console.error(e); });
 
         // 1. CREAR EVENTO
         window.crearEvento = async () => {
@@ -111,9 +131,9 @@
                     const itemStr = JSON.stringify(item).replace(/"/g, '&quot;');
                     htmlHorario += `
                         <div class="timeline-item">
-                            <span class="time-badge">${item.inicio} - ${item.fin}</span>
-                            <strong>${item.actividad}</strong>
-                            ${item.material ? `<span class="mat-badge">🎒 ${item.material}</span>` : ''}
+                            <span class="time-badge">${esc(item.inicio)} - ${esc(item.fin)}</span>
+                            <strong>${esc(item.actividad)}</strong>
+                            ${item.material ? `<span class="mat-badge">🎒 ${esc(item.material)}</span>` : ''}
                             <button class="btn-mini" style="color:red" onclick="borrarHora('${d.id}', '${itemStr}')">x</button>
                         </div>`;
                 });
@@ -126,7 +146,7 @@
                     const safeC = c.replace(/'/g, "\\'");
                     htmlComentarios += `
                         <div class="comment-item">
-                            <span>💬 ${c}</span>
+                            <span>💬 ${esc(c)}</span>
                             <button onclick="delComentario('${d.id}', '${safeC}')" style="color:red; background:none; border:none; cursor:pointer;">x</button>
                         </div>`;
                 });
@@ -135,9 +155,9 @@
                     <div class="card">
                         <div class="card-header" onclick="toggleCard('${d.id}')">
                             <div>
-                                <h2 style="margin:0; color:var(--primary);">${data.nombre}</h2>
+                                <h2 style="margin:0; color:var(--primary);">${esc(data.nombre)}</h2>
                                 <small style="color:#666; font-size: 0.9rem;">
-                                    📅 ${data.fecha} &nbsp;|&nbsp; 📍 <strong>${data.ubicacion || "Sin ubicación"}</strong>
+                                    📅 ${esc(data.fecha)} &nbsp;|&nbsp; 📍 <strong>${esc(data.ubicacion || "Sin ubicación")}</strong>
                                     &nbsp;|&nbsp; 💬 ${comentarios.length} notas
                                 </small>
                             </div>
