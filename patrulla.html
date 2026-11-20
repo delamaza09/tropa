@@ -47,7 +47,22 @@
     </div>
     <div class="fecha"><span id="prox-dia">--</span><small id="prox-mes">...</small></div>
   </section>
-
+  
+  <div class="col chat-col">
+    <section id="chat" class="card chat">
+      <div class="tabs" role="tablist">
+        <button type="button" class="tab" role="tab" id="tab-patrulla" aria-selected="true" onclick="cambiarCanal('patrulla_chat')">Patrulla<i class="punto oculto" id="pt-patrulla_chat"></i></button>
+        <button type="button" class="tab oculto" role="tab" id="tab-jefatura" aria-selected="false" onclick="cambiarCanal('jefatura_chat')">Jefatura<i class="punto oculto" id="pt-jefatura_chat"></i></button>
+        <button type="button" class="tab oculto" role="tab" id="tab-alta" aria-selected="false" onclick="cambiarCanal('alta_patrulla_chat')">Alta Patrulla<i class="punto oculto" id="pt-alta_patrulla_chat"></i></button>
+      </div>
+      <div id="chat-mensajes" class="chat-msgs" aria-live="polite"></div>
+      <div class="chat-form">
+        <input type="text" id="input-mensaje" placeholder="Escribe un mensaje…" maxlength="500" aria-label="Mensaje">
+        <button type="button" class="btn" onclick="enviarMensaje()">Enviar</button>
+      </div>
+    </section>
+  </div>
+  
   <div class="col">
     <section id="puestos" class="card">
       <div class="card-head"><h2>Puestos de acción</h2><span class="count" id="txt-puestos"></span></div>
@@ -96,20 +111,6 @@
     </section>
   </div>
 
-  <div class="col chat-col">
-    <section id="chat" class="card chat">
-      <div class="tabs" role="tablist">
-        <button type="button" class="tab" role="tab" id="tab-patrulla" aria-selected="true" onclick="cambiarCanal('patrulla_chat')">Patrulla<i class="punto oculto" id="pt-patrulla_chat"></i></button>
-        <button type="button" class="tab oculto" role="tab" id="tab-jefatura" aria-selected="false" onclick="cambiarCanal('jefatura_chat')">Jefatura<i class="punto oculto" id="pt-jefatura_chat"></i></button>
-        <button type="button" class="tab oculto" role="tab" id="tab-alta" aria-selected="false" onclick="cambiarCanal('alta_patrulla_chat')">Alta Patrulla<i class="punto oculto" id="pt-alta_patrulla_chat"></i></button>
-      </div>
-      <div id="chat-mensajes" class="chat-msgs" aria-live="polite"></div>
-      <div class="chat-form">
-        <input type="text" id="input-mensaje" placeholder="Escribe un mensaje…" maxlength="500" aria-label="Mensaje">
-        <button type="button" class="btn" onclick="enviarMensaje()">Enviar</button>
-      </div>
-    </section>
-  </div>
 </main>
 
 <script type="module">
