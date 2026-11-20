@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Puesto de acción · Tropa Nube</title>
+<title>Puesto de acción · Tropa San Francisco Javier</title>
 <link rel="icon" type="image/png" href="marca-agua.png">
 <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="scout.css">
 </head>
 <body>
 <header class="topbar">
-  <a href="patrulla.html" id="home" class="brand"><span class="brand-logo"><img src="marca-agua.png" alt="Logo Scouts"></span><span>Tropa Nube</span></a>
+  <a href="patrulla.html" id="home" class="brand"><span class="brand-logo"><img src="marca-agua.png" alt="Logo Scouts"></span><span>Tropa San Francisco Javier</span></a>
   <nav class="nav"><a href="profundiza-pa.html" id="volver">← Todos los puestos</a></nav>
 </header>
 <main class="pagina">
@@ -30,7 +30,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&
 const p = porSlug(new URLSearchParams(location.search).get("p")) || PA[0];
 
 const i = PA.indexOf(p);
-document.title = `${p.nombre} · Tropa Nube`;
+document.title = `${p.nombre} · Tropa San Francisco Javier`;
 $("em").textContent = p.emoji; $("titulo").textContent = p.nombre; $("desc").textContent = p.resumen;
 const ant = PA[(i + PA.length - 1) % PA.length], sig = PA[(i + 1) % PA.length];
 $("ant").href = "pa.html?p=" + ant.slug; $("ant").textContent = "← " + ant.nombre;

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mi Patrulla · Tropa Nube</title>
+<title>Mi Patrulla · Tropa San Francisco Javier</title>
 <link rel="icon" type="image/png" href="marca-agua.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,7 +12,7 @@
 </head>
 <body>
 <header class="topbar">
-  <a href="index.html" class="brand"><span class="brand-logo"><img src="marca-agua.png" alt="Logo Scouts"></span><span>Tropa Nube</span></a>
+  <a href="index.html" class="brand"><span class="brand-logo"><img src="marca-agua.png" alt="Logo Scouts"></span><span>Tropa San Francisco Javier</span></a>
   <nav class="nav">
     <a href="#puestos">Puestos</a><a href="profundiza-pa.html">Profundiza en tu PA</a><a href="#objetivos-tropa">Objetivos</a><a href="#actividades">Actividades</a><a href="#inventario">Inventario</a><a href="#chat">Chat<i class="punto oculto" id="pt-nav"></i></a>
     <a href="progresion.html" class="principal">Mi progresión</a>
@@ -120,7 +120,7 @@ import { crearNoLeidos, avisarEnvio } from "./no-leidos.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 /* ===== Ajustes: edita aquí los 7 puestos fijos ===== */
-const PUESTOS = ["Guía", "Subguía", "Tesorero", "Secretario", "Intendente", "Sanitario", "Material"];
+const PUESTOS = ["Socorrista", "Orientador", "Pionero", "Cocinero", "Liturgista", "Animador de Veladas", "Deportista"];
 const MAX_PUESTOS = 2;
 const PATRULLAS = { toro: ["Patrulla Toro", "🐂"], leon: ["Patrulla León", "🦁"] };
 const CATS = { cocina: "🍳 Cocina", pionerismo: "🪵 Pionerismo", otros: "📦 Otros" };
@@ -199,7 +199,7 @@ function iniciar() {
   const [nombrePatrulla, emoji] = PATRULLAS[patrullaId] || ["Mi patrulla", "⚜️"];
   $("titulo-patrulla").textContent = nombrePatrulla;
   $("emoji-patrulla").textContent = emoji;
-  tituloBase = `${nombrePatrulla} · Tropa Nube`;
+  tituloBase = `${nombrePatrulla} · Tropa San Francisco Javier`;
   document.title = tituloBase;
   $("yo-nombre").textContent = yo.nombre || yo.usuario || "";
   $("yo-rol").textContent = yo.rol || "scout";
