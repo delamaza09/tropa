@@ -1,0 +1,14 @@
+PUESTA EN MARCHA
+1. Sube marca-agua.png (el logo) a la raíz del proyecto.
+2. Firebase > Authentication > Sign-in method: activa "Correo/contraseña".
+3. Firebase > Firestore > Reglas: pega el contenido de firestore.rules y publica.
+4. PRIMER JEFE (solo una vez): en Authentication crea o localiza tu cuenta, copia su UID y en
+   Firestore crea el documento usuarios/<ese UID> con los campos:
+     nombre (texto), usuario (texto), rol = "JT" (texto), patrulla = null, puestos = [] (array)
+   Haz lo mismo con el resto de jefes que ya tenían cuenta (rol "JT" o "kraal").
+5. Entra en acceso-kraal.html > Usuarios y crea las cuentas de los scouts (rol scout o JP, patrulla toro o leon).
+6. Al abrir patrulla.html y gestion-patrullas.html por primera vez, Firestore te dará enlaces para crear
+   los índices compuestos (patrulla + creadoEn). Pulsa cada enlace.
+7. Los 7 puestos de acción se editan en la constante PUESTOS de patrulla.html.
+Cambios de colecciones: nuevas "usuarios" y "jefatura_chat"; "patrulla_puestos" ya no se usa.
+La antigua pantalla de login del Kraal está guardada como _login_kraal_antiguo.html (puedes borrarla).

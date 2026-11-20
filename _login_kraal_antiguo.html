@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso Scout</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        /* --- ESTILOS EXCLUSIVOS DEL LOGIN --- */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Poppins', sans-serif;
+            height: 100vh;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: url('https://images.unsplash.com/photo-1478131143081-80f7f84ca84d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80') no-repeat center center/cover;
+            position: relative;
+        }
+
+        /* Capa oscura sobre la imagen para que se lea bien */
+        body::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 50, 40, 0.6); /* Tinte verde oscuro scout */
+            backdrop-filter: blur(3px);
+        }
+
+        .login-card {
+            position: relative;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            z-index: 10;
+            animation: slideUp 0.8s ease-out;
+        }
+
+        /* Animación de entrada */
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(50px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Animación de error (temblor) */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        .shake { animation: shake 0.3s ease-in-out; border: 2px solid #e57373; }
+
+        .brand-logo {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        h1 { margin: 0; color: #00695c; font-weight: 600; }
+        p { color: #666; margin-top: 5px; margin-bottom: 30px; font-size: 0.9rem; }
+
+        .input-group {
+            position: relative;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .input-group label {
+            font-size: 0.8rem;
+            color: #555;
+            font-weight: 600;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px 15px;
+            padding-right: 40px; /* Espacio para el icono */
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            outline: none;
+            transition: 0.3s;
+            box-sizing: border-box;
+        }
+
+        .input-group input:focus {
+            border-color: #00695c;
+            box-shadow: 0 0 0 4px rgba(0, 105, 92, 0.1);
+        }
+
+        /* Icono de ver contraseña */
+        .toggle-password {
+            position: absolute;
+            right: 15px;
+            top: 38px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            color: #888;
+            user-select: none;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #00695c, #004d40);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 105, 92, 0.4);
+        }
+
+        .btn-login:active { transform: translateY(0); }
+
+        .btn-login:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error-msg {
+            color: #d32f2f;
+            font-size: 0.85rem;
+            margin-top: 15px;
+            display: none;
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .footer-link {
+            margin-top: 20px;
+            font-size: 0.8rem;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-card" id="login-card">
+        <span class="brand-logo">⚜️</span>
+        <h1>Siempre Listos</h1>
+        <p>Gestión de Tropa San Francisco Javier</p>
+
+        <div class="input-group">
+            <label>Correo Electrónico</label>
+            <input type="email" id="email" placeholder="scouter@grupo.com">
+        </div>
+
+        <div class="input-group">
+            <label>Contraseña</label>
+            <input type="password" id="password" placeholder="••••••••">
+            <span class="toggle-password" onclick="togglePass()">👁️</span>
+        </div>
+
+        <button class="btn-login" id="btn-login">Iniciar Sesión</button>
+        
+        <div id="error-msg" class="error-msg"></div>
+
+        <div class="footer-link">
+            ¿Problemas para entrar? Pregunta al jeefe
+        </div>
+    </div>
+
+    <script type="module">
+        import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { auth } from "./firebase-config.js";
+        import "./auth-guard.js"; // Redirige si ya estás logueado
+
+        // LOGICA DE LOGIN
+        const btnLogin = document.getElementById('btn-login');
+        const card = document.getElementById('login-card');
+        const errorDiv = document.getElementById('error-msg');
+
+        btnLogin.addEventListener('click', async () => {
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('password').value;
+
+            // Resetear estados
+            errorDiv.style.display = 'none';
+            card.classList.remove('shake');
+            btnLogin.innerText = "Conectando...";
+            btnLogin.disabled = true;
+
+            try {
+                await signInWithEmailAndPassword(auth, email, pass);
+                // Auth-guard redirigirá automáticamente
+            } catch (error) {
+                // Si falla:
+                btnLogin.innerText = "Iniciar Sesión";
+                btnLogin.disabled = false;
+                
+                // Mostrar error y agitar tarjeta
+                errorDiv.innerText = "❌ Usuario o contraseña incorrectos";
+                errorDiv.style.display = 'block';
+                card.classList.add('shake');
+                
+                // Quitar la clase shake después de la animación para poder repetirla
+                setTimeout(() => card.classList.remove('shake'), 500);
+            }
+        });
+
+        // Permitir dar ENTER para entrar
+        document.getElementById('password').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') btnLogin.click();
+        });
+
+        // MOSTRAR / OCULTAR CONTRASEÑA
+        window.togglePass = () => {
+            const input = document.getElementById('password');
+            const icon = document.querySelector('.toggle-password');
+            if (input.type === "password") {
+                input.type = "text";
+                icon.innerText = "🔒"; // Icono cerrado
+            } else {
+                input.type = "password";
+                icon.innerText = "👁️"; // Icono abierto
+            }
+        };
+    </script>
+</body>
+</html>

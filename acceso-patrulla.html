@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Entrar · Tropa Nube</title>
+<link rel="icon" type="image/png" href="marca-agua.png">
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="scout.css">
+</head>
+<body class="entrada">
+  <main class="entrada-card">
+    <div class="logo"><img src="marca-agua.png" alt="Logo Tropa Nube"></div>
+    <h1>Entra a tu patrulla</h1>
+    <p class="sub">Usa el usuario y la contraseña que te dio la jefatura.</p>
+    <div id="error" class="error" role="alert"></div>
+    <div class="campo"><label for="usuario">Usuario</label><input type="text" id="usuario" autocomplete="username" autocapitalize="none" autofocus></div>
+    <div class="campo"><label for="clave">Contraseña</label><input type="password" id="clave" autocomplete="current-password"></div>
+    <button type="button" id="entrar" class="btn-grande">Entrar</button>
+    <a href="index.html" class="volver">← Volver al inicio</a>
+  </main>
+
+<script type="module">
+import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { auth, db } from "./firebase-config.js";
+
+const $ = (id) => document.getElementById(id);
+const DOMINIO = "tropanube.app";
+const error = (t) => { $("error").textContent = t; $("error").classList.add("ver"); };
+
+async function irSegunRol(uid) {
+  const s = await getDoc(doc(db, "usuarios", uid));
+  if (!s.exists()) { await signOut(auth); return error("Este usuario no está dado de alta. Habla con la jefatura."); }
+  const rol = s.data().rol;
+  window.location.href = (rol === "JT" || rol === "kraal") ? "dashboard.html" : "patrulla.html";
+}
+
+async function entrar() {
+  $("error").classList.remove("ver");
+  const usuario = $("usuario").value.trim().toLowerCase();
+  const clave = $("clave").value;
+  if (!usuario || !clave) return error("Escribe tu usuario y tu contraseña.");
+  if (!/^[a-z0-9._-]+$/.test(usuario)) return error("El usuario solo puede llevar letras sin tilde, números, punto, guion o guion bajo.");
+  $("entrar").disabled = true;
+  try {
+    const cred = await signInWithEmailAndPassword(auth, `${usuario}@${DOMINIO}`, clave);
+    await irSegunRol(cred.user.uid);
+  } catch (e) {
+    error("Usuario o contraseña incorrectos.");
+  }
+  $("entrar").disabled = false;
+}
+
+$("entrar").addEventListener("click", entrar);
+["usuario", "clave"].forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter") entrar(); }));
+onAuthStateChanged(auth, (u) => { if (u) irSegunRol(u.uid); });
+</script>
+</body>
+</html>

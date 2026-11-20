@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Usuarios · Tropa Nube</title>
+    <link rel="icon" type="image/png" href="marca-agua.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <button class="menu-btn" onclick="toggleMenu()" aria-label="Menú">☰</button>
+    <nav class="sidebar" id="sidebar">
+        <div class="brand">⚜️ San Francisco Javier</div>
+        <a href="dashboard.html" class="menu-item">📊 Dashboard</a>
+        <a href="miembros.html" class="menu-item">👥 Miembros</a>
+        <a href="inventario.html" class="menu-item">📦 Inventario</a>
+        <a href="objetivos.html" class="menu-item">🎯 Objetivos tropa</a>
+        <a href="gestion-patrullas.html" class="menu-item">🐂 Patrullas</a>
+        <a href="usuarios.html" class="menu-item active">🔑 Usuarios</a>
+        <a href="campamento.html" class="menu-item">⛺ Campamento</a>
+        <a href="calendario.html" class="menu-item">📅 Calendario</a>
+        <a href="notas.html" class="menu-item">📝 Mis Notas</a>
+        <div class="menu-item logout" onclick="logout()">Cerrar Sesión</div>
+    </nav>
+
+    <main class="content">
+        <h1>🔑 Usuarios</h1>
+        <p>Crea las cuentas de los scouts. Entran en «Entrar» con su usuario y contraseña.</p>
+
+        <section class="card">
+            <h2>Nueva cuenta</h2>
+            <div class="form-grid">
+                <div><label for="u-nombre">Nombre</label><input type="text" id="u-nombre" placeholder="Nombre del scout" maxlength="40"></div>
+                <div><label for="u-user">Usuario (o correo si es del Kraal)</label><input type="text" id="u-user" placeholder="ej: pablo.toro" autocapitalize="none"></div>
+                <div><label for="u-clave">Contraseña (mín. 6)</label><input type="text" id="u-clave" autocomplete="off"></div>
+                <div><label for="u-rol">Rol</label><select id="u-rol"><option value="scout">Scout</option><option value="JP">JP (jefe de patrulla)</option><option value="JT">JT (jefe de tropa)</option><option value="kraal">Kraal</option></select></div>
+                <div id="bloque-pat"><label for="u-pat">Patrulla</label><select id="u-pat"><option value="toro">🐂 Toro</option><option value="leon">🦁 León</option></select></div>
+            </div>
+            <button class="btn btn-primary" style="margin-top:16px" onclick="crear()" id="btn-crear">Crear cuenta</button>
+            <div id="ok" class="aviso-ok" role="status"></div><div id="ko" class="aviso-ko" role="alert"></div>
+        </section>
+
+        <section class="card">
+            <h2>Cuentas</h2>
+            <div id="lista"></div>
+        </section>
+    </main>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { collection, onSnapshot, query, orderBy, setDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { app, db } from "./firebase-config.js";
+        import "./auth-guard.js";
+
+        window.toggleMenu = () => document.getElementById('sidebar').classList.toggle('active');
+        const $ = (id) => document.getElementById(id);
+        const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+        const msg = (id, t) => { $("ok").classList.remove("ver"); $("ko").classList.remove("ver"); $(id).textContent = t; $(id).classList.add("ver"); };
+
+        $("u-rol").addEventListener("change", () => { $("bloque-pat").style.display = ["scout", "JP"].includes($("u-rol").value) ? "" : "none"; });
+
+        // App secundaria: crea la cuenta sin cerrar tu sesión de jefe
+        const secundaria = initializeApp(app.options, "secundaria");
+        const authSec = getAuth(secundaria);
+
+        window.crear = async () => {
+            const nombre = $("u-nombre").value.trim(), u = $("u-user").value.trim().toLowerCase(), clave = $("u-clave").value, rol = $("u-rol").value;
+            const patrulla = ["scout", "JP"].includes(rol) ? $("u-pat").value : null;
+            if (!nombre || !u || clave.length < 6) return msg("ko", "Completa nombre, usuario y una contraseña de 6 caracteres o más.");
+            if (!u.includes("@") && !/^[a-z0-9._-]+$/.test(u)) return msg("ko", "El usuario solo puede llevar letras sin tilde, números, punto, guion o guion bajo.");
+            const email = u.includes("@") ? u : `${u}@tropanube.app`;
+            $("btn-crear").disabled = true;
+            try {
+                const cred = await createUserWithEmailAndPassword(authSec, email, clave);
+                await setDoc(doc(db, "usuarios", cred.user.uid), { nombre, usuario: u, rol, patrulla, puestos: [], creadoEn: Date.now() });
+                await signOut(authSec);
+                msg("ok", `Cuenta creada: ${u} (${rol}). Pásale la contraseña en persona.`);
+                ["u-nombre", "u-user", "u-clave"].forEach(id => $(id).value = "");
+            } catch (e) {
+                msg("ko", e.code === "auth/email-already-in-use" ? "Ese usuario ya existe." : "No se pudo crear: " + e.message);
+            }
+            $("btn-crear").disabled = false;
+        };
+
+        window.quitar = (id) => confirm("Se quitarán sus permisos de la web. ¿Seguro?") && deleteDoc(doc(db, "usuarios", id));
+
+        onSnapshot(query(collection(db, "usuarios"), orderBy("nombre")), (snap) => {
+            $("lista").innerHTML = snap.empty ? '<p class="vacio">Todavía no hay cuentas.</p>' : snap.docs.map(d => { const x = d.data();
+                return `<div class="item"><span><b>${esc(x.nombre)}</b> · ${esc(x.usuario || "")} · ${esc(x.rol)}${x.patrulla ? " · " + esc(x.patrulla) : ""}${(x.puestos || []).length ? " · " + esc(x.puestos.join(", ")) : ""}</span><button class="x" onclick="quitar('${d.id}')" aria-label="Quitar acceso">✕</button></div>`; }).join("");
+        });
+    </script>
+</body>
+</html>

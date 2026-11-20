@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventario - Tropa Nube</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" href="https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Fleur_de_lis_white.svg/1024px-Fleur_de_lis_white.svg.png">
+    
+    <style>
+        .grid-inventario {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .inventario-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .header-kraal { border-top: 6px solid #263238; }
+        .header-toro { border-top: 6px solid #c62828; }
+        .header-leon { border-top: 6px solid #f9a825; }
+
+        .presupuesto-box {
+            background: #e0f2f1;
+            padding: 12px;
+            border-radius: 8px;
+            color: #00695c;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .form-add {
+            display: grid;
+            grid-template-columns: 2fr 1fr auto auto;
+            gap: 5px;
+            background: #f1f3f4;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        /* Estilos de Categoría */
+        .cat-tag {
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: var(--primary);
+            background: #e0f2f1;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-top: 15px;
+            display: inline-block;
+            border: 1px solid #b2dfdb;
+        }
+
+        .item-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .item-info { display: flex; align-items: center; gap: 10px; flex: 1; }
+        .item-cantidad {
+            background: #eceff1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .faltas-section {
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 2px dashed #ffcdd2;
+        }
+
+        .item-falta { color: #b71c1c; font-style: italic; }
+        .input-qty { width: 45px; text-align: center; }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="brand">⚜️ San Francisco Javier</div>
+        <a href="dashboard.html" class="menu-item">📊 Dashboard</a>
+        <a href="miembros.html" class="menu-item">👥 Miembros</a>
+        <a href="inventario.html" class="menu-item active">📦 Inventario</a>
+        <a href="objetivos.html" class="menu-item">🎯 Objetivos tropa</a>
+        <a href="gestion-patrullas.html" class="menu-item">🐂 Patrullas</a>
+        <a href="usuarios.html" class="menu-item">🔑 Usuarios</a>
+        <a href="campamento.html" class="menu-item">⛺ Campamento</a>
+        <a href="calendario.html" class="menu-item">📅 Calendario</a>
+        <a href="notas.html" class="menu-item">📝 Mis Notas</a>
+        <div class="menu-item logout" onclick="logout()">Cerrar Sesión</div>
+    </nav>
+
+    <main class="content">
+        <h1>📦 Inventario Clasificado</h1>
+        
+        <div class="grid-inventario">
+            <script>
+                const secciones = [
+                    {id: 'kraal', nombre: '🗝️ Kraal', class: 'header-kraal'},
+                    {id: 'toro', nombre: '🐂 Toro', class: 'header-toro'},
+                    {id: 'leon', nombre: '🦁 León', class: 'header-leon'}
+                ];
+
+                secciones.forEach(s => {
+                    document.write(`
+                        <div class="inventario-card ${s.class}">
+                            <h2>${s.nombre}</h2>
+                            <div class="presupuesto-box">
+                                <span>💰 Presupuesto:</span>
+                                <input type="number" id="pre_${s.id}" class="input-qty" style="width:70px" onchange="guardarPresupuesto('${s.id}')"> €
+                            </div>
+
+                            <div class="form-add">
+                                <input type="text" id="nom_${s.id}" placeholder="Objeto...">
+                                <input type="number" id="qty_${s.id}" value="1" class="input-qty">
+                                <select id="cat_${s.id}">
+                                    <option value="cocina">🍳</option>
+                                    <option value="pionerismo">🪵</option>
+                                    <option value="otros">📦</option>
+                                </select>
+                                <div style="display:flex; gap:2px">
+                                    <button class="btn-mini" onclick="agregarItem('${s.id}', false)" style="background:var(--primary); color:white">+</button>
+                                    <button class="btn-mini" onclick="agregarItem('${s.id}', true)" style="background:#d32f2f; color:white">⚠️</button>
+                                </div>
+                            </div>
+
+                            <div id="lista_${s.id}"></div>
+                        </div>
+                    `);
+                });
+            </script>
+        </div>
+    </main>
+
+    <script type="module">
+        import { collection, addDoc, onSnapshot, query, deleteDoc, doc, orderBy, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { db } from "./firebase-config.js";
+        import "./auth-guard.js";
+
+        const cats = { cocina: '🍳 Cocina', pionerismo: '🪵 Pionerismo', otros: '📦 Otros' };
+
+        window.guardarPresupuesto = async (id) => {
+            const val = document.getElementById(`pre_${id}`).value;
+            await setDoc(doc(db, "presupuestos", id), { total: val });
+        };
+
+        window.agregarItem = async (seccion, esFalta) => {
+            const nombre = document.getElementById(`nom_${seccion}`).value;
+            const qty = document.getElementById(`qty_${seccion}`).value;
+            const cat = document.getElementById(`cat_${seccion}`).value;
+
+            if (nombre) {
+                await addDoc(collection(db, "inventario"), {
+                    nombre, cantidad: parseInt(qty), seccion, categoria: cat, falta: esFalta, fecha: Date.now()
+                });
+                document.getElementById(`nom_${seccion}`).value = "";
+            }
+        };
+
+        window.borrarItem = async (id) => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, "inventario", id)); };
+
+        // Cargar Presupuestos
+        onSnapshot(collection(db, "presupuestos"), s => s.forEach(d => {
+            if(document.getElementById(`pre_${d.id}`)) document.getElementById(`pre_${d.id}`).value = d.data().total;
+        }));
+
+        // Cargar Inventario Clasificado
+        onSnapshot(query(collection(db, "inventario"), orderBy("nombre")), (snap) => {
+            const dataMap = { kraal: { stock: {}, faltas: {} }, toro: { stock: {}, faltas: {} }, leon: { stock: {}, faltas: {} } };
+
+            snap.forEach(documento => {
+                const d = documento.data();
+                const id = documento.id;
+                const tipo = d.falta ? 'faltas' : 'stock';
+                const cat = d.categoria || 'otros';
+
+                if (!dataMap[d.seccion][tipo][cat]) dataMap[d.seccion][tipo][cat] = '';
+                dataMap[d.seccion][tipo][cat] += `
+                    <div class="item-row ${d.falta ? 'item-falta' : ''}">
+                        <div class="item-info">
+                            <span class="item-cantidad">${d.cantidad}</span>
+                            <span>${d.nombre}</span>
+                        </div>
+                        <button onclick="borrarItem('${id}')" style="border:none; background:none; cursor:pointer">🗑️</button>
+                    </div>`;
+            });
+
+            ['kraal', 'toro', 'leon'].forEach(s => {
+                let html = '';
+                // Pintar Stock
+                for (let c in cats) {
+                    if (dataMap[s].stock[c]) {
+                        html += `<span class="cat-tag">${cats[c]}</span>${dataMap[s].stock[c]}`;
+                    }
+                }
+                // Pintar Faltas
+                html += `<div class="faltas-section"><b style="color:#d32f2f; font-size:0.8rem">⚠️ NECESIDADES:</b>`;
+                for (let c in cats) {
+                    if (dataMap[s].faltas[c]) {
+                        html += `<span class="cat-tag" style="background:#ffebee">${cats[c]}</span>${dataMap[s].faltas[c]}`;
+                    }
+                }
+                html += `</div>`;
+                document.getElementById(`lista_${s}`).innerHTML = html;
+            });
+        });
+    </script>
+</body>
+</html>

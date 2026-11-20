@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Notas - Tropa Nube</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" href="https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Fleur_de_lis_white.svg/1024px-Fleur_de_lis_white.svg.png">
+    <style>
+        .notas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .nota-card { 
+            background: #fff9c4; /* Estilo Post-it */
+            padding: 15px; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            border-left: 5px solid #fbc02d;
+        }
+        .nota-card.hecha { opacity: 0.6; background: #e0e0e0; border-left-color: #9e9e9e; }
+        .nota-header { display: flex; justify-content: space-between; font-size: 0.8rem; color: #7f8c8d; }
+        .nota-content { border: none; background: transparent; font-family: inherit; font-size: 1rem; resize: none; width: 100%; }
+        .nota-content:focus { outline: none; background: rgba(255,255,255,0.5); border-radius: 4px; }
+        .nota-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="brand">⚜️ San Francisco Javier</div>
+        <a href="dashboard.html" class="menu-item">📊 Dashboard</a>
+        <a href="miembros.html" class="menu-item">👥 Miembros</a>
+        <a href="inventario.html" class="menu-item">📦 Inventario</a>
+        <a href="objetivos.html" class="menu-item">🎯 Objetivos tropa</a>
+        <a href="gestion-patrullas.html" class="menu-item">🐂 Patrullas</a>
+        <a href="usuarios.html" class="menu-item">🔑 Usuarios</a>
+        <a href="campamento.html" class="menu-item">⛺ Campamento</a>
+        <a href="calendario.html" class="menu-item">📅 Calendario</a>
+        <a href="notas.html" class="menu-item active">📝 Mis Notas</a>
+        <div class="menu-item logout" onclick="logout()">Cerrar Sesión</div>
+    </nav>
+
+    <main class="content">
+        <h1>📝 Mis Notas Personales</h1>
+        <button class="btn btn-primary" onclick="crearNota()" style="margin-bottom: 20px;">+ Nueva Nota</button>
+        
+        <div id="contenedor-notas" class="notas-grid"></div>
+    </main>
+
+    <script type="module">
+        import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { db } from "./firebase-config.js";
+        import "./auth-guard.js";
+
+        // Crear nota vacía
+        window.crearNota = async () => {
+            await addDoc(collection(db, "notas"), {
+                texto: "Nueva nota...",
+                hecho: false,
+                fecha: new Date().toLocaleString()
+            });
+        };
+
+        // Borrar nota
+        window.borrarNota = async (id) => {
+            if(confirm("¿Borrar nota?")) await deleteDoc(doc(db, "notas", id));
+        };
+
+        // Modificar texto al escribir
+        window.actualizarNota = async (id, valor) => {
+            await updateDoc(doc(db, "notas", id), { texto: valor });
+        };
+
+        // Marcar como checklist
+        window.toggleNota = async (id, estado) => {
+            await updateDoc(doc(db, "notas", id), { hecho: estado });
+        };
+
+        // Cargar notas
+        onSnapshot(query(collection(db, "notas"), orderBy("fecha", "desc")), (snap) => {
+            const cont = document.getElementById('contenedor-notas');
+            cont.innerHTML = "";
+            snap.forEach(d => {
+                const data = d.data();
+                cont.innerHTML += `
+                    <div class="nota-card ${data.hecho ? 'hecha' : ''}">
+                        <div class="nota-header">
+                            <span>📅 ${data.fecha}</span>
+                            <input type="checkbox" ${data.hecho ? 'checked' : ''} onchange="toggleNota('${d.id}', this.checked)">
+                        </div>
+                        <textarea class="nota-content" onchange="actualizarNota('${d.id}', this.value)" rows="4">${data.texto}</textarea>
+                        <div class="nota-actions">
+                            <small style="color:#95a5a6">Autoguardado</small>
+                            <button onclick="borrarNota('${d.id}')" style="background:none; border:none; cursor:pointer;">🗑️</button>
+                        </div>
+                    </div>`;
+            });
+        });
+    </script>
+</body>
+</html>

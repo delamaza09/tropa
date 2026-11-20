@@ -1,0 +1,98 @@
+/* --- ESTILOS BASE (Mismos de antes + Nuevos) --- */
+@import url('https://fonts.googleapis.com/css2?family=Bitter:wght@600;800&display=swap');
+:root {
+    --primary: #1f4d3d; --primary-osc: #14342a; --insignia: #f2c14e; --borde: #cfdfd4;
+    --toro: #b3402f; --leon: #d99a1a;
+    --bg: #e6efe8; --sidebar: #14342a; --white: #ffffff; --texto: #142419;
+}
+body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: var(--texto); margin: 0; background: var(--bg); display: flex; height: 100vh; overflow: hidden; }
+a { text-decoration: none; color: inherit; }
+
+/* SIDEBAR Y MENÚ MÓVIL (Igual que antes) */
+.sidebar { width: 250px; background: var(--sidebar); color: #cfe6d7; display: flex; flex-direction: column; padding: 20px; transition: transform 0.3s ease; z-index: 1000; height: 100vh; }
+.brand { color: white; font-family: Bitter, Georgia, serif; font-size: 1.25rem; font-weight: 800; margin-bottom: 36px; display: flex; align-items: center; gap: 10px; }
+.menu-item { padding: 15px; margin-bottom: 5px; border-radius: 8px; transition: 0.3s; display: block; }
+.menu-item:hover { background: rgba(255,255,255,0.1); color: white; }
+.menu-item.active { background: var(--insignia); color: #2b1f00; font-weight: 800; }
+.logout { margin-top: auto; background: rgba(255,255,255,0.08); text-align: center; cursor: pointer; }
+.menu-btn { display: none; position: fixed; top: 15px; right: 15px; background: var(--primary); color: white; border: none; padding: 10px 15px; border-radius: 5px; font-size: 1.5rem; z-index: 2000; cursor: pointer; }
+
+/* CONTENIDO */
+.content { flex: 1; padding: 40px; overflow-y: auto; }
+h1, h2, h3 { font-family: Bitter, Georgia, serif; color: var(--primary-osc); }
+h1 { margin-bottom: 10px; }
+.next-activity-card h1, .next-activity-card h3 { color: #fff; }
+.card { background: #f7faf7; padding: 20px; border-radius: 14px; border: 1px solid var(--borde); box-shadow: 0 2px 0 var(--borde); margin-bottom: 20px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.btn { padding: 10px 20px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; color: white; }
+.btn-primary { background: var(--primary); }
+
+/* --- NOVEDADES --- */
+
+/* Próxima Actividad (Dashboard) */
+.next-activity-card { background: linear-gradient(135deg, var(--primary), var(--primary-osc)); border-bottom: 5px solid var(--insignia); color: white; padding: 25px; border-radius: 15px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
+.next-date { font-size: 2.5rem; font-weight: bold; line-height: 1; text-align: center; background: var(--insignia); color: #2b1f00; padding: 10px; border-radius: 10px; }
+
+/* Listas de Patrulla (Dashboard) */
+.patrol-list { margin-top: 15px; }
+.patrol-item { padding: 8px; border-bottom: 1px solid var(--borde); display: flex; justify-content: space-between; font-size: 0.9rem; }
+
+/* Modal Edición (Miembros) */
+.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 3000; overflow-y: auto; }
+.modal-content { background: white; margin: 2% auto; padding: 30px; width: 90%; max-width: 900px; border-radius: 15px; position: relative; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.section-header { grid-column: span 2; border-bottom: 2px solid #eee; margin-top: 20px; padding-bottom: 5px; color: var(--primary); font-weight: bold; }
+input, select, textarea { width: 100%; padding: 10px; border: 1px solid var(--borde); border-radius: 10px; margin-top: 5px; background: #fff; color: var(--texto); font: inherit; box-sizing: border-box; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: #3f7d5c; box-shadow: 0 0 0 3px rgba(63,125,92,.2); }
+a:focus-visible, button:focus-visible { outline: 3px solid var(--insignia); outline-offset: 2px; }
+
+/* Checkboxes de Progresión */
+.progreso-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; }
+.prog-check { border: 1px solid #ddd; padding: 15px; border-radius: 8px; text-align: center; cursor: pointer; }
+.prog-check input { width: auto; margin-bottom: 5px; }
+
+/* Responsive */
+@media (max-width: 768px) {
+    body { flex-direction: column; }
+    .menu-btn { display: block; }
+    .sidebar { position: fixed; left: -100%; width: 80%; }
+    .sidebar.active { left: 0; }
+    .content { padding-top: 70px; }
+    .grid-2, .form-grid, .progreso-grid { grid-template-columns: 1fr; }
+    .next-activity-card { flex-direction: column; text-align: center; gap: 15px; }
+}
+
+/* --- ESTILOS EXTRA PARA CALENDARIO COMPLETO --- */
+.timeline { margin-top: 15px; border-left: 3px solid #ddd; padding-left: 15px; margin-left: 5px; }
+.timeline-item { position: relative; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed #eee; }
+.timeline-item::before { content: ''; position: absolute; left: -20px; top: 5px; width: 10px; height: 10px; background: var(--primary); border-radius: 50%; }
+.time-badge { font-weight: bold; font-size: 0.9rem; color: var(--primary); background: #d8ebdf; padding: 2px 6px; border-radius: 4px; }
+.mat-badge { font-size: 0.8rem; color: #666; display: block; margin-top: 3px; }
+.btn-mini { padding: 3px 8px; font-size: 0.8rem; background: #eee; color: #333; margin-left: 5px; }
+
+/* Ajuste para el Modal Gigante de Miembros */
+.full-width { grid-column: span 2; }
+@media (max-width: 768px) { .full-width { grid-column: span 1; } }
+
+
+
+/* --- Páginas nuevas del Kraal --- */
+.tabs-pat { display: flex; gap: 8px; margin: 14px 0 20px; flex-wrap: wrap; }
+.tabs-pat button { background: #fff; border: 1px solid var(--borde); border-radius: 10px; padding: 9px 16px; font-weight: 700; cursor: pointer; color: #546c5f; }
+.tabs-pat button.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+.fila-add { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.fila-add input { flex: 1 1 160px; margin-top: 0; width: auto; }
+.item { display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid var(--borde); border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; }
+.item span { flex: 1; overflow-wrap: anywhere; }
+.item input[type=checkbox] { width: auto; margin: 0; accent-color: #3f7d5c; }
+.item.hecho span { text-decoration: line-through; color: #546c5f; }
+.vacio { color: #546c5f; border: 1px dashed var(--borde); border-radius: 10px; padding: 14px; text-align: center; font-size: .92rem; }
+.x { background: none; border: none; cursor: pointer; color: #546c5f; font-size: 1rem; padding: 4px 6px; }
+.x:hover { color: var(--toro); }
+.chat-box { height: 280px; overflow-y: auto; background: var(--bg); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.chat-box .m { background: #fff; border: 1px solid var(--borde); border-radius: 10px; padding: 6px 10px; max-width: 85%; overflow-wrap: anywhere; }
+.chat-box .m.yo { align-self: flex-end; background: #8fd0a8; }
+.chat-box small { color: #546c5f; display: block; }
+.aviso-ok { background: #d8ebdf; color: var(--primary-osc); border-radius: 10px; padding: 10px 12px; margin-top: 12px; display: none; }
+.aviso-ko { background: #f6e3df; color: var(--toro); border-radius: 10px; padding: 10px 12px; margin-top: 12px; display: none; }
+.aviso-ok.ver, .aviso-ko.ver { display: block; }

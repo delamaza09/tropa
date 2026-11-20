@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Scout</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <button class="menu-btn" onclick="toggleMenu()">☰</button>
+    <nav class="sidebar" id="sidebar">
+        <div class="brand">⚜️ San Francisco Javier</div>
+        <a href="dashboard.html" class="menu-item active">📊 Dashboard</a>
+        <a href="miembros.html" class="menu-item">👥 Miembros</a>
+        <a href="inventario.html" class="menu-item">📦 Inventario</a>
+        <a href="objetivos.html" class="menu-item">🎯 Objetivos tropa</a>
+        <a href="gestion-patrullas.html" class="menu-item">🐂 Patrullas</a>
+        <a href="usuarios.html" class="menu-item">🔑 Usuarios</a>
+        <a href="campamento.html" class="menu-item">⛺ Campamento</a>
+        <a href="calendario.html" class="menu-item">📅 Calendario</a>
+        <a href="notas.html" class="menu-item">📝 Mis Notas</a>
+        <div class="menu-item logout" onclick="logout()">Cerrar Sesión</div>
+    </nav>
+
+    <main class="content">
+        <div id="next-activity" class="next-activity-card" style="display:none;">
+            <div>
+                <h3 style="margin:0; opacity:0.9">🚀 Próxima Actividad</h3>
+                <h1 id="next-title" style="margin: 5px 0;">Cargando...</h1>
+                <p id="next-desc" style="opacity:0.7">...</p>
+            </div>
+            <div class="next-date">
+                <span id="next-day" style="display:block; font-size:1.5em;">--</span>
+                <span id="next-month" style="font-size:0.4em; text-transform:uppercase;">...</span>
+            </div>
+        </div>
+
+        <h1>Puntuación de Patrullas</h1>
+        <div class="grid-2">
+            <div class="card" style="border-top: 5px solid var(--toro);">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2>🐂 Toro</h2>
+                    <h1 id="pts-toro" style="color: var(--toro); font-size: 3rem; margin:0;">--</h1>
+                </div>
+                <div style="margin: 15px 0; text-align:center;">
+                    <button class="btn" style="background:var(--toro)" onclick="sumar('Toro', 10)">+10</button>
+                    <button class="btn" style="background:#e57373" onclick="sumar('Toro', -5)">-5</button>
+                </div>
+                <div class="patrol-list" id="list-toro"></div>
+            </div>
+
+            <div class="card" style="border-top: 5px solid var(--leon);">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2>🦁 León</h2>
+                    <h1 id="pts-leon" style="color: var(--leon); font-size: 3rem; margin:0;">--</h1>
+                </div>
+                <div style="margin: 15px 0; text-align:center;">
+                    <button class="btn" style="background:var(--leon)" onclick="sumar('Leon', 10)">+10</button>
+                    <button class="btn" style="background:#e57373" onclick="sumar('Leon', -5)">-5</button>
+                </div>
+                <div class="patrol-list" id="list-leon"></div>
+            </div>
+        </div>
+    </main>
+
+    <script type="module">
+        import { doc, onSnapshot, updateDoc, increment, collection, query, orderBy, where, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { db } from "./firebase-config.js";
+        import "./auth-guard.js";
+
+        window.toggleMenu = () => document.getElementById('sidebar').classList.toggle('active');
+
+        // 1. PUNTOS Y MIEMBROS
+        const ptsRef = doc(db, "tropa", "puntuacion");
+        onSnapshot(ptsRef, (doc) => {
+            if(doc.exists()) {
+                document.getElementById('pts-toro').innerText = doc.data().Toro;
+                document.getElementById('pts-leon').innerText = doc.data().Leon;
+            }
+        });
+        window.sumar = (p, v) => updateDoc(ptsRef, { [p]: increment(v) });
+
+        // Listar miembros
+        const qMem = query(collection(db, "miembros"), orderBy("nombre"));
+        onSnapshot(qMem, (snap) => {
+            document.getElementById('list-toro').innerHTML = "";
+            document.getElementById('list-leon').innerHTML = "";
+            snap.forEach(d => {
+                const data = d.data();
+                const html = `<div class="patrol-item"><span>${data.nombre}</span><small>${data.cargo || ''}</small></div>`;
+                if(data.patrulla === 'Toro') document.getElementById('list-toro').innerHTML += html;
+                if(data.patrulla === 'Leon') document.getElementById('list-leon').innerHTML += html;
+            });
+        });
+
+        // 2. PRÓXIMA ACTIVIDAD (Lógica inteligente)
+        const today = new Date().toISOString().split('T')[0]; // Fecha de hoy YYYY-MM-DD
+        const qAct = query(collection(db, "actividades"), where("fecha", ">=", today), orderBy("fecha"), limit(1));
+        
+        onSnapshot(qAct, (snap) => {
+            if(!snap.empty) {
+                const data = snap.docs[0].data();
+                const fecha = new Date(data.fecha);
+                const meses = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"];
+                
+                document.getElementById('next-activity').style.display = 'flex';
+                document.getElementById('next-title').innerText = data.nombre;
+                document.getElementById('next-desc').innerText = data.horario ? `⏰ ${data.horario}` : 'Todo el día';
+                document.getElementById('next-day').innerText = fecha.getDate();
+                document.getElementById('next-month').innerText = meses[fecha.getMonth()];
+            } else {
+                document.getElementById('next-activity').style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

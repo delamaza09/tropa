@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- Ayudas ----
+    function conectado() { return request.auth != null; }
+    function yo() { return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data; }
+    function existeYo() { return conectado() && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)); }
+    function esKraal() { return existeYo() && yo().rol in ['JT', 'kraal']; }
+    function esJP() { return existeYo() && yo().rol == 'JP'; }
+    function suPatrulla(p) { return existeYo() && yo().patrulla == p; }
+
+    // ---- Usuarios ----
+    match /usuarios/{uid} {
+      allow read: if conectado() && (request.auth.uid == uid || esKraal() || suPatrulla(resource.data.patrulla));
+      allow create, delete: if esKraal();
+      allow update: if esKraal()
+        || (esJP() && suPatrulla(resource.data.patrulla)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['puestos']));
+    }
+
+    // ---- Espacio de patrulla ----
+    match /patrulla_objetivos/{id} {
+      allow read: if esKraal() || suPatrulla(resource.data.patrulla);
+      allow create: if esKraal() || (esJP() && suPatrulla(request.resource.data.patrulla));
+      allow update, delete: if esKraal() || (esJP() && suPatrulla(resource.data.patrulla));
+    }
+    match /patrulla_actividades/{id} {
+      allow read: if esKraal() || suPatrulla(resource.data.patrulla);
+      allow create: if esKraal() || (esJP() && suPatrulla(request.resource.data.patrulla));
+      allow update, delete: if esKraal() || (esJP() && suPatrulla(resource.data.patrulla));
+    }
+    match /patrulla_chat/{id} {
+      allow read: if esKraal() || suPatrulla(resource.data.patrulla);
+      allow create: if conectado() && request.resource.data.uid == request.auth.uid
+                    && (esKraal() || suPatrulla(request.resource.data.patrulla));
+      allow delete: if esKraal();
+    }
+    // Chat privado JP <-> Jefatura: los scouts normales no lo ven
+    match /jefatura_chat/{id} {
+      allow read: if esKraal() || (esJP() && suPatrulla(resource.data.patrulla));
+      allow create: if conectado() && request.resource.data.uid == request.auth.uid
+                    && (esKraal() || (esJP() && suPatrulla(request.resource.data.patrulla)));
+      allow delete: if esKraal();
+    }
+
+    // ---- Todo lo demás (inventario, campamento, calendario, notas, miembros...): solo Kraal ----
+    match /{document=**} {
+      allow read, write: if esKraal();
+    }
+  }
+}

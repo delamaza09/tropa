@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patrullas · Tropa Nube</title>
+    <link rel="icon" type="image/png" href="marca-agua.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <button class="menu-btn" onclick="toggleMenu()" aria-label="Menú">☰</button>
+    <nav class="sidebar" id="sidebar">
+        <div class="brand">⚜️ San Francisco Javier</div>
+        <a href="dashboard.html" class="menu-item">📊 Dashboard</a>
+        <a href="miembros.html" class="menu-item">👥 Miembros</a>
+        <a href="inventario.html" class="menu-item">📦 Inventario</a>
+        <a href="objetivos.html" class="menu-item">🎯 Objetivos tropa</a>
+        <a href="gestion-patrullas.html" class="menu-item active">🐂 Patrullas</a>
+        <a href="usuarios.html" class="menu-item">🔑 Usuarios</a>
+        <a href="campamento.html" class="menu-item">⛺ Campamento</a>
+        <a href="calendario.html" class="menu-item">📅 Calendario</a>
+        <a href="notas.html" class="menu-item">📝 Mis Notas</a>
+        <div class="menu-item logout" onclick="logout()">Cerrar Sesión</div>
+    </nav>
+
+    <main class="content">
+        <h1>🐂 Gestión de patrullas</h1>
+        <p>Objetivos y actividades de cada patrulla, y el chat con sus JP.</p>
+        <div class="tabs-pat" id="tabs">
+            <button type="button" class="on" data-p="toro">🐂 Toro</button>
+            <button type="button" data-p="leon">🦁 León</button>
+        </div>
+
+        <div class="grid-2">
+            <section class="card">
+                <h2>Objetivos</h2>
+                <div class="fila-add"><input type="text" id="obj-txt" placeholder="Nuevo objetivo…" maxlength="120"><button class="btn btn-primary" onclick="addObjetivo()">Añadir</button></div>
+                <div id="lista-obj"></div>
+            </section>
+            <section class="card">
+                <h2>Actividades</h2>
+                <div class="fila-add"><input type="text" id="act-txt" placeholder="Nueva actividad…" maxlength="120"><input type="date" id="act-fecha"><input type="time" id="act-hora"><button class="btn btn-primary" onclick="addActividad()">Añadir</button></div>
+                <div id="lista-act"></div>
+            </section>
+        </div>
+
+        <section class="card">
+            <h2>Chat con el JP</h2>
+            <div class="chat-box" id="chat"></div>
+            <div class="fila-add"><input type="text" id="chat-txt" placeholder="Escribe un mensaje al JP…" maxlength="500"><button class="btn btn-primary" onclick="enviar()">Enviar</button></div>
+        </section>
+    </main>
+
+    <script type="module">
+        import { collection, addDoc, onSnapshot, query, where, orderBy, deleteDoc, updateDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { auth, db } from "./firebase-config.js";
+        import "./auth-guard.js";
+
+        window.toggleMenu = () => document.getElementById('sidebar').classList.toggle('active');
+        const $ = (id) => document.getElementById(id);
+        const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+        let patrulla = "toro", uid = null, miNombre = "Jefatura", bajas = [];
+        onAuthStateChanged(auth, async (u) => {
+            if (!u) return;
+            uid = u.uid;
+            const s = await getDoc(doc(db, "usuarios", u.uid));
+            if (s.exists()) miNombre = s.data().nombre || "Jefatura";
+            escuchar();
+        });
+
+        $("tabs").addEventListener("click", (e) => {
+            const b = e.target.closest("button"); if (!b) return;
+            patrulla = b.dataset.p;
+            document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("on", x === b));
+            escuchar();
+        });
+
+        const q = (col, dir) => query(collection(db, col), where("patrulla", "==", patrulla), orderBy("creadoEn", dir));
+        function escuchar() {
+            bajas.forEach(f => f()); bajas = [];
+            bajas.push(onSnapshot(q("patrulla_objetivos", "desc"), (snap) => {
+                $("lista-obj").innerHTML = snap.empty ? '<p class="vacio">Sin objetivos todavía.</p>' : snap.docs.map(d => { const o = d.data();
+                    return `<div class="item ${o.hecho ? "hecho" : ""}"><input type="checkbox" ${o.hecho ? "checked" : ""} onchange="marcar('${d.id}', this.checked)" aria-label="Cumplido"><span>${esc(o.texto)}</span><button class="x" onclick="borrar('patrulla_objetivos','${d.id}')" aria-label="Eliminar">✕</button></div>`; }).join("");
+            }));
+            bajas.push(onSnapshot(q("patrulla_actividades", "desc"), (snap) => {
+                const ds = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.fecha || "9999").localeCompare(b.fecha || "9999"));
+                $("lista-act").innerHTML = ds.length ? ds.map(a => `<div class="item"><span><b>${esc(a.fecha || "Sin fecha")}</b> ${esc(a.hora || "")} · ${esc(a.texto)}</span><button class="x" onclick="borrar('patrulla_actividades','${a.id}')" aria-label="Eliminar">✕</button></div>`).join("") : '<p class="vacio">Sin actividades todavía.</p>';
+            }));
+            bajas.push(onSnapshot(q("jefatura_chat", "asc"), (snap) => {
+                $("chat").innerHTML = snap.empty ? '<p class="vacio">Aún no hay mensajes con el JP.</p>' : snap.docs.map(d => { const m = d.data();
+                    return `<div class="m ${m.uid === uid ? "yo" : ""}"><small><b>${esc(m.autor)}</b> ${m.rol ? esc(m.rol) : ""}</small>${esc(m.texto)}</div>`; }).join("");
+                $("chat").scrollTop = $("chat").scrollHeight;
+            }));
+        }
+
+        window.addObjetivo = async () => { const t = $("obj-txt").value.trim(); if (!t) return;
+            await addDoc(collection(db, "patrulla_objetivos"), { texto: t, hecho: false, patrulla, creadoEn: Date.now(), autor: miNombre }); $("obj-txt").value = ""; };
+        window.addActividad = async () => { const t = $("act-txt").value.trim(); if (!t) return;
+            await addDoc(collection(db, "patrulla_actividades"), { texto: t, fecha: $("act-fecha").value, hora: $("act-hora").value, patrulla, creadoEn: Date.now(), autor: miNombre });
+            $("act-txt").value = ""; $("act-fecha").value = ""; $("act-hora").value = ""; };
+        window.marcar = (id, hecho) => updateDoc(doc(db, "patrulla_objetivos", id), { hecho });
+        window.borrar = (col, id) => confirm("¿Eliminar?") && deleteDoc(doc(db, col, id));
+        window.enviar = async () => { const t = $("chat-txt").value.trim(); if (!t) return;
+            await addDoc(collection(db, "jefatura_chat"), { texto: t, autor: miNombre, rol: "JT", uid, patrulla, creadoEn: Date.now() }); $("chat-txt").value = ""; };
+        $("chat-txt").addEventListener("keydown", e => { if (e.key === "Enter") enviar(); });
+    </script>
+</body>
+</html>
