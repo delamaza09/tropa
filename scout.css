@@ -204,11 +204,7 @@ body.entrada{display:grid;place-items:center;padding:24px;background:radial-grad
 /* ===== Descripción de objetivos ===== */
 .obj .desc,.item .desc{display:block;color:var(--suave);font-size:.85rem;font-weight:400;margin-top:2px}
 
-/* ===== Reuniones: votar si vas o no ===== */
-.reunion{background:#fff;border:1px solid var(--borde);border-left:6px solid var(--insignia);border-radius:12px;padding:12px 14px}
-.reunion h3{font-family:Bitter,Georgia,serif;color:var(--pino);font-size:1.05rem}
-.reunion .meta{color:var(--suave);font-size:.88rem;margin:2px 0 6px}
-.reunion .txt{font-size:.92rem;margin-bottom:8px;overflow-wrap:anywhere}
+/* ===== Votar si vas a una actividad ===== */
 .votar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .voto{border:2px solid var(--borde);background:#fff;color:var(--texto);border-radius:10px;padding:8px 16px;font-weight:800;cursor:pointer}
 .voto:hover{border-color:var(--musgo)}
@@ -253,3 +249,8 @@ body.entrada{display:grid;place-items:center;padding:24px;background:radial-grad
 .esp span{border:1px solid var(--borde);background:#fff;color:var(--suave);border-radius:99px;padding:3px 11px;font-size:.85rem;font-weight:600}
 .esp span.ok{background:var(--pino);border-color:var(--pino);color:#fff}
 @media (prefers-reduced-motion:reduce){.peldao .barra-et i{transition:none}}
+
+.act .votar{margin-top:8px}
+.act .voto{padding:6px 12px;font-size:.88rem}
+.act .control{margin-top:8px}
+@media (max-width:600px){.act .voto{flex:1 1 auto}}

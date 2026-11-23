@@ -123,7 +123,7 @@ body { height: 100vh; height: 100dvh; }
 .badge-nl{background:#e53935;color:#fff;border-radius:99px;font-size:.72rem;font-weight:800;padding:1px 8px;margin-left:8px}
 .menu-btn.tiene-nl::after{content:"";position:absolute;top:4px;right:4px;width:11px;height:11px;border-radius:50%;background:#e53935;border:2px solid #fff}
 
-/* --- Reuniones, documentación y progresión (Kraal) --- */
+/* --- Asistencia a actividades, documentación y progresión (Kraal) --- */
 .item .desc { display: block; color: #546c5f; font-size: .85rem; margin-top: 2px; }
 .reu { background: #fff; border: 1px solid var(--borde); border-left: 6px solid var(--insignia); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
 .reu.pasada { opacity: .65; border-left-color: #9bb3a4; }

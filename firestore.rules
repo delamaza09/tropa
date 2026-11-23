@@ -63,6 +63,18 @@ service cloud.firestore {
     match /actividades/{id} {
       allow read: if existeYo();
       allow write: if esKraal();
+      // Cada uno vota la suya: Voy / No voy
+      match /votos/{uid} {
+        allow read: if esKraal()
+                    || (existeYo() && request.auth.uid == uid)
+                    || (esJP() && suPatrulla(resource.data.patrulla));
+        allow create, update: if existeYo() && request.auth.uid == uid
+                              && request.resource.data.keys().hasOnly(['voto', 'nombre', 'patrulla', 'uid', 'ts'])
+                              && request.resource.data.voto in ['si', 'no']
+                              && request.resource.data.uid == request.auth.uid
+                              && request.resource.data.patrulla == yo().patrulla;
+        allow delete: if esKraal();
+      }
     }
 
     // ---- Inventario y presupuesto: cada patrulla ve el suyo (solo lectura) ----
@@ -120,23 +132,6 @@ service cloud.firestore {
     }
     match /lecturas/{uid} {
       allow read, write: if existeYo() && request.auth.uid == uid;
-    }
-
-    // ---- Reuniones: las crea el Kraal; cada uno vota la suya (Voy / No voy) ----
-    match /reuniones/{id} {
-      allow read: if existeYo();
-      allow write: if esKraal();
-      match /votos/{uid} {
-        allow read: if esKraal()
-                    || (existeYo() && request.auth.uid == uid)
-                    || (esJP() && suPatrulla(resource.data.patrulla));
-        allow create, update: if existeYo() && request.auth.uid == uid
-                              && request.resource.data.keys().hasOnly(['voto', 'nombre', 'patrulla', 'uid', 'ts'])
-                              && request.resource.data.voto in ['si', 'no']
-                              && request.resource.data.uid == request.auth.uid
-                              && request.resource.data.patrulla == yo().patrulla;
-        allow delete: if esKraal();
-      }
     }
 
     // ---- Documentación (PDF guardados por trozos): los ve todo el mundo, los sube el Kraal ----

@@ -39,3 +39,8 @@ actividades a otra patrulla ni asignar más de 2 puestos. vercel.json añade cab
 "Content-Security-Policy-Report-Only" por "Content-Security-Policy".
 Recomendado en Firebase/Google Cloud: restringir la API key a tu dominio (Credenciales > Restricciones de HTTP referrer),
 revisar Authentication > Configuración > Dominios autorizados, poner una alerta de presupuesto y borrar _login_kraal_antiguo.html.
+
+Votar asistencia: ahora se vota en las propias actividades del calendario (calendario.html). Cada scout ve "Voy / No voy" en las
+actividades de tropa de su agenda (patrulla.html); el JP ve el control de su patrulla y la jefatura ve quién va, quién no y quién no
+ha respondido dentro de cada día del calendario. Los votos se guardan en actividades/<id>/votos/<uid>.
+Quitado: la sección "Reuniones" (gestion-reuniones.html y su colección "reuniones"). Hay que volver a publicar firestore.rules.

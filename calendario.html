@@ -37,7 +37,6 @@
         <a href="inventario.html" class="menu-item">Inventario</a>
         <a href="objetivos.html" class="menu-item">Objetivos tropa</a>
         <a href="gestion-patrullas.html" class="menu-item">Patrullas</a>
-        <a href="gestion-reuniones.html" class="menu-item">Reuniones</a>
         <a href="gestion-documentos.html" class="menu-item">Documentación</a>
         <a href="gestion-progresion.html" class="menu-item">Progresión</a>
         <a href="gestion-pa.html" class="menu-item">Profundiza PA</a>
@@ -70,7 +69,7 @@
     </main>
 
     <script type="module">
-        import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateDoc, arrayUnion, arrayRemove, getDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { db } from "./firebase-config.js";
         import "./auth-guard.js";
 
@@ -115,6 +114,27 @@
                 document.getElementById('ev-ubicacion').value = "";
             }
         };
+
+        // ASISTENCIA: quién ha votado Voy / No voy en cada actividad
+        const NOMBRES = { toro: "🐂 Toro", leon: "🦁 León" };
+        let scouts = [], votos = {}, escuchadasVotos = new Set();
+        function pintarAsistencia(id) {
+            const cont = document.getElementById(`asist_${id}`); if (!cont) return;
+            const vs = votos[id] || [];
+            const si = vs.filter(v => v.voto === "si").length, no = vs.filter(v => v.voto === "no").length, sr = Math.max(0, scouts.length - si - no);
+            const col = (p) => {
+                const gente = scouts.filter(s => s.patrulla === p);
+                const de = (x) => gente.filter(s => vs.some(v => v.uid === s.id && v.voto === x)).map(s => esc(s.nombre || s.usuario));
+                const pend = gente.filter(s => !vs.some(v => v.uid === s.id)).map(s => esc(s.nombre || s.usuario));
+                return `<div><h4>${NOMBRES[p]}</h4><p>✅ <b>Van (${de("si").length}):</b> ${de("si").join(", ") || "—"}</p><p>❌ <b>No van (${de("no").length}):</b> ${de("no").join(", ") || "—"}</p><p>⏳ <b>Sin responder (${pend.length}):</b> ${pend.join(", ") || "—"}</p></div>`;
+            };
+            cont.innerHTML = `<div class="cifras"><span>✅ Van ${si}</span><span class="no">❌ No van ${no}</span><span class="sr">⏳ Sin responder ${sr}</span></div><div class="pat-cols">${col("toro")}${col("leon")}</div>`;
+            const cif = document.getElementById(`cif_${id}`); if (cif) cif.textContent = `🗳️ ${si} van · ${no} no · ${sr} sin responder`;
+        }
+        onSnapshot(collection(db, "usuarios"), (snap) => {
+            scouts = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => !["JT", "kraal"].includes(u.rol) && NOMBRES[u.patrulla]);
+            document.querySelectorAll("[id^=asist_]").forEach(el => pintarAsistencia(el.id.slice(6)));
+        }, (e) => console.warn("usuarios", e));
 
         // 2. LISTAR EVENTOS
         const q = query(collection(db, "actividades"), orderBy("fecha"));
@@ -162,6 +182,7 @@
                                 <small style="color:#666; font-size: 0.9rem;">
                                     📅 ${esc(data.fecha)} &nbsp;|&nbsp; 📍 <strong>${esc(data.ubicacion || "Sin ubicación")}</strong>
                                     &nbsp;|&nbsp; 💬 ${comentarios.length} notas
+                                    &nbsp;|&nbsp; <span id="cif_${d.id}">🗳️ …</span>
                                 </small>
                             </div>
                             <div class="toggle-icon" id="icon_${d.id}">▼</div>
@@ -171,6 +192,11 @@
                             <div style="display:flex; justify-content:flex-end; margin-bottom:15px;">
                                 <button onclick="descargarWord('${d.id}')" style="background:#1565c0; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; margin-right:5px;">📄 Descargar Word</button>
                                 <button onclick="borrarEvento('${d.id}')" style="background:none; border:none; cursor:pointer;">🗑️ Eliminar Día</button>
+                            </div>
+
+                            <div style="background:#f4faf6; border:1px solid #d8ebdf; border-radius:8px; padding:10px; margin-bottom:12px;">
+                                <h4 style="margin:0 0 6px; color:#666;">🗳️ ¿Quién va a ir?</h4>
+                                <div id="asist_${d.id}"></div>
                             </div>
 
                             <div class="timeline">${htmlHorario}</div>
@@ -193,6 +219,13 @@
                         </div>
                     </div>`;
             });
+            snap.forEach(d => {
+                if (!escuchadasVotos.has(d.id)) {
+                    escuchadasVotos.add(d.id);
+                    onSnapshot(collection(db, "actividades", d.id, "votos"), (s) => { votos[d.id] = s.docs.map(x => x.data()); pintarAsistencia(d.id); }, (e) => console.warn("votos", e));
+                }
+                pintarAsistencia(d.id);
+            });
         });
 
         // 3. FUNCIONES BASE DE DATOS
@@ -204,7 +237,14 @@
             if(inicio && act) await updateDoc(doc(db, "actividades", docId), { cronograma: arrayUnion({ inicio, fin, actividad: act, material: mat }) });
         };
         window.borrarHora = async (docId, itemStr) => await updateDoc(doc(db, "actividades", docId), { cronograma: arrayRemove(JSON.parse(itemStr)) });
-        window.borrarEvento = (id) => { if(confirm("¿Borrar día?")) deleteDoc(doc(db, "actividades", id)); };
+        window.borrarEvento = async (id) => {
+            if (!confirm("¿Borrar día y sus votos?")) return;
+            try {
+                const vs = await getDocs(collection(db, "actividades", id, "votos"));
+                await Promise.all(vs.docs.map(x => deleteDoc(x.ref)));
+                await deleteDoc(doc(db, "actividades", id));
+            } catch (e) { alert("No se pudo borrar: " + e.message); }
+        };
 
         // 4. FUNCIONES COMENTARIOS
         window.addComentario = async (id) => {
