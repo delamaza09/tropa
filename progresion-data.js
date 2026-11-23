@@ -7,23 +7,20 @@ export const ETAPAS = [
       { id: "asp2", texto: "Aprender la Ley Scout" },
       { id: "asp3", texto: "Aprender el significado de la Promesa" },
       { id: "asp4", texto: "Asistir con regularidad a las reuniones" },
-      { id: "asp5", texto: "Hacer tu Promesa" }
+      { id: "asp5", texto: "Pasarse las pruebas del cuaderno" }
+      { id: "asp6", texto: "Hacer tu Promesa" }
     ] },
   { id: "segunda", nombre: "Segunda Clase", lema: "Etapa 2 · Ocupa tu puesto", desc: "Asume un puesto de acción en la patrulla y avanza en las técnicas de campo.",
     reqs: [
-      { id: "seg1", texto: "Ocupar un puesto de acción en tu patrulla" },
-      { id: "seg2", texto: "Hacer los nudos básicos" },
-      { id: "seg3", texto: "Orientarte con mapa y brújula" },
-      { id: "seg4", texto: "Montar y recoger una tienda" },
-      { id: "seg5", texto: "Participar en un campamento" }
+      { id: "seg1", texto: "Pasarse las pruebas de la Segunda Clase y tener el visto bueno de tu JP " },
+      { id: "seg2", texto: "Hacer el raid de 2 personas" },
+      { id: "seg3", texto: "Asistir con regularidad a las actividades" }
     ] },
   { id: "primera", nombre: "Primera Clase", lema: "Etapa 3 · Avanza", desc: "Amplía responsabilidades y afronta retos mayores con tu patrulla.",
     reqs: [
-      { id: "pri1", texto: "Cumplir tu puesto de acción durante un trimestre" },
-      { id: "pri2", texto: "Dirigir una actividad de patrulla" },
-      { id: "pri3", texto: "Saber primeros auxilios básicos" },
-      { id: "pri4", texto: "Cocinar para tu patrulla en campamento" },
-      { id: "pri5", texto: "Preparar una excursión con tu patrulla" }
+      { id: "pri1", texto: "Pasarse las pruebas de la Segunda Clase y tener el visto bueno de tu JP " },
+      { id: "pri2", texto: "Hacer el raid (solo)" },
+      { id: "pri3", texto: "Asistir con regularidad a las actividades"}
     ] }
 ];
 export const ESPECIALIDADES = [
