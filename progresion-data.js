@@ -8,13 +8,15 @@ export const ETAPAS = [
       { id: "asp3", texto: "Aprender el significado de la Promesa" },
       { id: "asp4", texto: "Asistir con regularidad a las reuniones" },
       { id: "asp5", texto: "Pasarse las pruebas del cuaderno" },
-      { id: "asp6", texto: "Hacer tu Promesa" }
+      { id: "asp6", texto: "Leer La Patrulla te invita" },
+      { id: "asp7", texto: "Hacer tu Promesa" }
     ] },
   { id: "segunda", nombre: "Segunda Clase", lema: "Etapa 2 · Ocupa tu puesto", desc: "Asume un puesto de acción en la patrulla y avanza en las técnicas de campo.",
     reqs: [
       { id: "seg1", texto: "Pasarse las pruebas de la Segunda Clase y tener el visto bueno de tu JP " },
       { id: "seg2", texto: "Hacer el raid de 2 personas" },
-      { id: "seg3", texto: "Asistir con regularidad a las actividades" }
+      { id: "seg3", texto: "Asistir con regularidad a las actividades" },
+      { id: "seg4", texto: "Leer La Patrulla te Acoge" }
     ] },
   { id: "primera", nombre: "Primera Clase", lema: "Etapa 3 · Avanza", desc: "Amplía responsabilidades y afronta retos mayores con tu patrulla.",
     reqs: [
