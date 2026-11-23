@@ -64,6 +64,17 @@
   </div>
   
   <div class="col">
+    <section id="actividades" class="card">
+      <div class="card-head"><h2>Próximas actividades</h2><span class="count">Tropa + patrulla</span></div>
+      <div class="add solo-jefe oculto">
+        <input type="text" id="input-actividad" placeholder="Ej: Salida del sábado, fuego de campamento…" maxlength="120" aria-label="Nueva actividad">
+        <input type="date" id="input-fecha" aria-label="Fecha">
+        <input type="time" id="input-hora" aria-label="Hora">
+        <button type="button" class="btn" onclick="agregarActividad()">Añadir actividad</button>
+      </div>
+      <div id="lista-actividades" class="lista"></div>
+    </section>
+
     <section id="puestos" class="card">
       <div class="card-head"><h2>Puestos de acción</h2><span class="count" id="txt-puestos"></span></div>
       <p class="nota">Cada scout tiene uno o dos puestos. Los reparte el JP.</p>
@@ -94,16 +105,7 @@
       <div id="lista-objetivos" class="lista"></div>
     </section>
 
-    <section id="actividades" class="card">
-      <div class="card-head"><h2>Próximas actividades</h2><span class="count">Tropa + patrulla</span></div>
-      <div class="add solo-jefe oculto">
-        <input type="text" id="input-actividad" placeholder="Ej: Salida del sábado, fuego de campamento…" maxlength="120" aria-label="Nueva actividad">
-        <input type="date" id="input-fecha" aria-label="Fecha">
-        <input type="time" id="input-hora" aria-label="Hora">
-        <button type="button" class="btn" onclick="agregarActividad()">Añadir actividad</button>
-      </div>
-      <div id="lista-actividades" class="lista"></div>
-    </section>
+
   </div>
 
 </main>
