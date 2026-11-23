@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reuniones · Tropa San Francisco Javier</title>
+    <link rel="icon" type="image/png" href="marca-agua.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <button class="menu-btn" onclick="toggleMenu()" aria-label="Menú">☰</button>
+    <nav class="sidebar" id="sidebar">
+        <div class="brand">San Francisco Javier</div>
+        <a href="dashboard.html" class="menu-item">Dashboard</a>
+        <a href="inventario.html" class="menu-item">Inventario</a>
+        <a href="objetivos.html" class="menu-item">Objetivos tropa</a>
+        <a href="gestion-patrullas.html" class="menu-item">Patrullas</a>
+        <a href="gestion-reuniones.html" class="menu-item active">Reuniones</a>
+        <a href="gestion-documentos.html" class="menu-item">Documentación</a>
+        <a href="gestion-progresion.html" class="menu-item">Progresión</a>
+        <a href="gestion-pa.html" class="menu-item">Profundiza PA</a>
+        <a href="usuarios.html" class="menu-item">🔑 Usuarios</a>
+        <a href="calendario.html" class="menu-item">Calendario</a>
+        <a href="notas.html" class="menu-item">📝 Notas</a>
+        <div class="menu-item logout" onclick="logout()">Cerrar Sesión</div>
+    </nav>
+
+    <main class="content">
+        <h1>📅 Reuniones y asistencia</h1>
+        <p class="subtitle">Crea las próximas reuniones. Cada scout vota «Voy» o «No voy» desde su patrulla y aquí ves quién ha respondido.</p>
+
+        <section class="card">
+            <h2>Nueva reunión</h2>
+            <div class="form-grid">
+                <div><label for="r-tit">Título</label><input type="text" id="r-tit" maxlength="80" placeholder="Ej: Reunión de patrullas"></div>
+                <div><label for="r-lug">Lugar</label><input type="text" id="r-lug" maxlength="80" placeholder="Ej: Local de la parroquia"></div>
+                <div><label for="r-fec">Fecha</label><input type="date" id="r-fec"></div>
+                <div><label for="r-hor">Hora</label><input type="time" id="r-hor"></div>
+            </div>
+            <label for="r-des" style="display:block; margin-top:12px">Descripción (opcional)</label>
+            <input type="text" id="r-des" maxlength="300" placeholder="Qué hay que traer, uniforme, etc.">
+            <button class="btn btn-primary" style="margin-top:14px" onclick="crear()">Crear reunión</button>
+        </section>
+
+        <div id="lista"><p class="vacio">Cargando…</p></div>
+    </main>
+
+    <script type="module">
+        import { collection, addDoc, onSnapshot, deleteDoc, getDocs, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { db } from "./firebase-config.js";
+        import "./auth-guard.js";
+
+        window.toggleMenu = () => document.getElementById('sidebar').classList.toggle('active');
+        const $ = (id) => document.getElementById(id);
+        const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+        const NOMBRES = { toro: "🐂 Toro", leon: "🦁 León" };
+        const hoy = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+        const intentar = async (fn) => { try { await fn(); } catch (e) { alert("No se pudo guardar: " + (e.code === "permission-denied" ? "sin permiso (publica las reglas de Firestore)." : e.message)); } };
+
+        let reuniones = [], scouts = [], votos = {}, escuchadas = new Set(), abiertas = new Set();
+
+        window.crear = () => intentar(async () => {
+            const titulo = $("r-tit").value.trim(), fecha = $("r-fec").value;
+            if (!titulo || !fecha) return alert("Pon al menos un título y una fecha.");
+            await addDoc(collection(db, "reuniones"), { titulo, fecha, hora: $("r-hor").value, lugar: $("r-lug").value.trim(), descripcion: $("r-des").value.trim(), creadoEn: Date.now() });
+            ["r-tit", "r-lug", "r-fec", "r-hor", "r-des"].forEach(id => $(id).value = "");
+        });
+        window.borrar = (id) => confirm("¿Eliminar esta reunión y sus votos?") && intentar(async () => {
+            const vs = await getDocs(collection(db, "reuniones", id, "votos"));
+            await Promise.all(vs.docs.map(d => deleteDoc(d.ref)));
+            await deleteDoc(doc(db, "reuniones", id));
+        });
+        window.abrir = (id, a) => { a ? abiertas.add(id) : abiertas.delete(id); };
+
+        onSnapshot(collection(db, "usuarios"), (snap) => {
+            scouts = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => !["JT", "kraal"].includes(u.rol) && NOMBRES[u.patrulla]);
+            pintar();
+        }, (e) => console.warn(e));
+        onSnapshot(collection(db, "reuniones"), (snap) => {
+            reuniones = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.fecha + (a.hora || "")).localeCompare(b.fecha + (b.hora || "")));
+            reuniones.forEach(r => {
+                if (escuchadas.has(r.id)) return; escuchadas.add(r.id);
+                onSnapshot(collection(db, "reuniones", r.id, "votos"), (s) => { votos[r.id] = s.docs.map(d => d.data()); pintar(); }, (e) => console.warn(e));
+            });
+            pintar();
+        }, (e) => { $("lista").innerHTML = `<p class="vacio">No se pudo cargar${e.code === "permission-denied" ? ": publica las reglas nuevas de Firestore." : "."}</p>`; });
+
+        function fmt(f) { return new Date(f + "T00:00").toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" }); }
+        function pintar() {
+            const h = hoy();
+            const tarjeta = (r) => {
+                const vs = votos[r.id] || [];
+                const si = vs.filter(v => v.voto === "si").length, no = vs.filter(v => v.voto === "no").length, sr = Math.max(0, scouts.length - si - no);
+                const col = (p) => {
+                    const gente = scouts.filter(s => s.patrulla === p);
+                    const de = (x) => gente.filter(s => vs.some(v => v.uid === s.id && v.voto === x)).map(s => esc(s.nombre || s.usuario));
+                    const pend = gente.filter(s => !vs.some(v => v.uid === s.id)).map(s => esc(s.nombre || s.usuario));
+                    return `<div><h4>${NOMBRES[p]}</h4><p>✅ <b>Van (${de("si").length}):</b> ${de("si").join(", ") || "—"}</p><p>❌ <b>No van (${de("no").length}):</b> ${de("no").join(", ") || "—"}</p><p>⏳ <b>Sin responder (${pend.length}):</b> ${pend.join(", ") || "—"}</p></div>`;
+                };
+                return `<div class="reu ${r.fecha < h ? "pasada" : ""}"><div style="display:flex; justify-content:space-between; gap:10px"><div><h3>${esc(r.titulo)}</h3>
+                    <div class="meta">📅 ${fmt(r.fecha)}${r.hora ? " · 🕒 " + esc(r.hora) : ""}${r.lugar ? " · 📍 " + esc(r.lugar) : ""}${r.fecha < h ? " · (ya pasó)" : ""}</div></div>
+                    <button class="x" onclick="borrar('${r.id}')" aria-label="Eliminar">🗑️</button></div>
+                    ${r.descripcion ? `<p>${esc(r.descripcion)}</p>` : ""}
+                    <div class="cifras"><span>✅ Van ${si}</span><span class="no">❌ No van ${no}</span><span class="sr">⏳ Sin responder ${sr}</span></div>
+                    <details ${abiertas.has(r.id) ? "open" : ""} ontoggle="abrir('${r.id}', this.open)"><summary>Ver por patrulla</summary><div class="pat-cols" style="margin-top:8px">${col("toro")}${col("leon")}</div></details></div>`;
+            };
+            const prox = reuniones.filter(r => r.fecha >= h), pas = reuniones.filter(r => r.fecha < h).reverse().slice(0, 5);
+            $("lista").innerHTML = (prox.length ? `<h2>Próximas</h2>` + prox.map(tarjeta).join("") : `<p class="vacio">No hay reuniones próximas. Crea la primera arriba.</p>`)
+                + (pas.length ? `<h2 style="margin-top:24px">Anteriores</h2>` + pas.map(tarjeta).join("") : "");
+        }
+    </script>
+</body>
+</html>

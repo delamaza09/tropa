@@ -14,7 +14,7 @@
 <header class="topbar">
   <a href="index.html" class="brand"><span class="brand-logo"><img src="marca-agua.png" alt="Logo Scouts"></span><span>Tropa San Francisco Javier</span></a>
   <nav class="nav">
-    <a href="#chat">Chat<i class="punto oculto" id="pt-nav"></i></a><a href="#puestos">Puestos</a><a href="profundiza-pa.html">Profundiza en tu PA</a><a href="#objetivos-tropa">Objetivos</a><a href="#actividades">Actividades</a><a href="#inventario">Inventario</a>
+    <a href="#chat">Chat<i class="punto oculto" id="pt-nav"></i></a><a href="#puestos">Puestos</a><a href="profundiza-pa.html">Profundiza en tu PA</a><a href="#objetivos-tropa">Objetivos</a><a href="#actividades">Actividades</a><a href="#reuniones">Reuniones</a><a href="inventario-patrulla.html" data-ver>Inventario</a><a href="documentos.html">Documentación</a>
     <a href="progresion.html" class="principal">Mi progresión</a>
     <span class="yo"><span id="yo-nombre"></span><span id="yo-rol" class="rol"></span></span>
     <button type="button" class="btn-salir" onclick="cerrarSesion()">Cerrar sesión</button>
@@ -88,6 +88,7 @@
       <div class="progreso" aria-hidden="true"><i id="barra"></i></div>
       <div class="add solo-jefe oculto">
         <input type="text" id="input-objetivo" placeholder="Nuevo objetivo de patrulla…" maxlength="120" aria-label="Nuevo objetivo">
+        <input type="text" id="input-obj-desc" placeholder="Descripción (opcional)" maxlength="300" aria-label="Descripción del objetivo">
         <button type="button" class="btn" onclick="agregarObjetivo()">Añadir objetivo</button>
       </div>
       <div id="lista-objetivos" class="lista"></div>
@@ -104,17 +105,17 @@
       <div id="lista-actividades" class="lista"></div>
     </section>
 
-    <section id="inventario" class="card">
-      <div class="card-head"><h2>Inventario de la patrulla</h2><span class="count" id="txt-presu"></span></div>
-      <p class="nota">Lo que tiene vuestra patrulla y lo que os falta. Lo actualiza la jefatura.</p>
-      <div id="lista-inventario"></div>
+    <section id="reuniones" class="card">
+      <div class="card-head"><h2>Próximas reuniones</h2><span class="count" id="txt-reuniones"></span></div>
+      <p class="nota">Vota si vas o no vas, así la jefatura sabe con quién cuenta.</p>
+      <div id="lista-reuniones" class="lista" style="max-height:none"></div>
     </section>
   </div>
 
 </main>
 
 <script type="module">
-import { collection, addDoc, onSnapshot, query, where, deleteDoc, updateDoc, doc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { collection, addDoc, onSnapshot, query, where, deleteDoc, updateDoc, setDoc, doc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { auth, db } from "./firebase-config.js";
 import { PA, porNombre } from "./puestos-data.js";
 import { crearNoLeidos, avisarEnvio } from "./no-leidos.js";
@@ -152,26 +153,41 @@ function iniciarNoLeidos() {
   new IntersectionObserver((es) => { chatVisible = es[0].isIntersecting; refrescarPuntos(); }, { threshold: 0.3 }).observe($("chat"));
   document.addEventListener("visibilitychange", refrescarPuntos);
 }
-/* ===== Inventario de la patrulla (solo lectura) ===== */
-function escucharInventario() {
-  onSnapshot(doc(db, "presupuestos", patrullaId), (s) => {
-    const t = s.exists() ? s.data().total : "";
-    $("txt-presu").textContent = t !== "" && t != null ? `💰 Presupuesto: ${t} €` : "";
-  }, () => {});
-  onSnapshot(query(collection(db, "inventario"), where("seccion", "==", patrullaId)), (snap) => {
-    const items = snap.docs.map(d => d.data()).sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), "es"));
-    const fila = (d) => `<div class="inv-fila ${d.falta ? "falta" : ""}"><span class="inv-cant">${esc(d.cantidad)}</span><span>${esc(d.nombre)}</span></div>`;
-    const bloque = (lista) => Object.keys(CATS).map(c => {
-      const xs = lista.filter(d => (d.categoria || "otros") === c);
-      return xs.length ? `<span class="cat-tag">${CATS[c]}</span>${xs.map(fila).join("")}` : "";
-    }).join("");
-    const stock = items.filter(d => !d.falta), faltas = items.filter(d => d.falta);
-    $("lista-inventario").innerHTML = items.length
-      ? (stock.length ? bloque(stock) : `<p class="vacio">Aún no hay material apuntado.</p>`)
-        + (faltas.length ? `<div class="faltas"><b>⚠️ Necesidades</b>${bloque(faltas)}</div>` : "")
-      : `<p class="vacio">La jefatura todavía no ha apuntado el inventario de la patrulla.</p>`;
-  }, (e) => fallo("lista-inventario", e));
+/* ===== Próximas reuniones: votar si vas o no ===== */
+const hoyReu = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const fmtFechaReu = (f) => new Date(f + "T00:00").toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
+let reuniones = [], misVotos = {}, votosPat = {}, escuchadas = new Set(), controlAbierto = new Set();
+function escucharReuniones() {
+  onSnapshot(collection(db, "reuniones"), (snap) => {
+    reuniones = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(r => (r.fecha || "") >= hoyReu())
+      .sort((a, b) => (a.fecha + (a.hora || "")).localeCompare(b.fecha + (b.hora || ""))).slice(0, 6);
+    reuniones.forEach(r => {
+      if (escuchadas.has(r.id)) return; escuchadas.add(r.id);
+      if (!vistaPrevia) onSnapshot(doc(db, "reuniones", r.id, "votos", usuarioId), (s) => { misVotos[r.id] = s.exists() ? s.data().voto : null; pintarReuniones(); }, (e) => console.warn(e));
+      if (esJefe || vistaPrevia) onSnapshot(query(collection(db, "reuniones", r.id, "votos"), where("patrulla", "==", patrullaId)), (s) => { votosPat[r.id] = s.docs.map(d => d.data()); pintarReuniones(); }, (e) => console.warn(e));
+    });
+    pintarReuniones();
+  }, (e) => fallo("lista-reuniones", e));
 }
+function pintarReuniones() {
+  $("txt-reuniones").textContent = reuniones.length ? `${reuniones.length} próxima${reuniones.length > 1 ? "s" : ""}` : "";
+  $("lista-reuniones").innerHTML = reuniones.length ? reuniones.map(r => {
+    const v = misVotos[r.id], vs = votosPat[r.id] || [];
+    const de = (x) => miembros.filter(m => vs.some(o => o.uid === m.id && o.voto === x)).map(m => esc(m.nombre || m.usuario));
+    const pend = miembros.filter(m => !vs.some(o => o.uid === m.id)).map(m => esc(m.nombre || m.usuario));
+    const control = (esJefe || vistaPrevia) ? `<details class="control" ${controlAbierto.has(r.id) ? "open" : ""} ontoggle="ctl('${r.id}', this.open)"><summary>Control de tu patrulla: ✅ ${de("si").length} · ❌ ${de("no").length} · ⏳ ${pend.length}</summary>
+        <p>✅ <b>Van:</b> ${de("si").join(", ") || "—"}</p><p>❌ <b>No van:</b> ${de("no").join(", ") || "—"}</p><p>⏳ <b>Sin responder:</b> ${pend.join(", ") || "—"}</p></details>` : "";
+    return `<div class="reunion"><h3>${esc(r.titulo)}</h3>
+      <div class="meta">📅 ${fmtFechaReu(r.fecha)}${r.hora ? " · 🕒 " + esc(r.hora) : ""}${r.lugar ? " · 📍 " + esc(r.lugar) : ""}</div>
+      ${r.descripcion ? `<div class="txt">${esc(r.descripcion)}</div>` : ""}
+      ${vistaPrevia ? "" : `<div class="votar"><button type="button" class="voto si ${v === "si" ? "on" : ""}" onclick="votar('${r.id}','si')">✅ Voy</button><button type="button" class="voto no ${v === "no" ? "on" : ""}" onclick="votar('${r.id}','no')">❌ No voy</button>
+        <small>${v === "si" ? "Has votado que vas" : v === "no" ? "Has votado que no vas" : "Aún no has votado"}</small></div>`}
+      ${control}</div>`;
+  }).join("") : `<p class="vacio">No hay reuniones convocadas todavía.</p>`;
+}
+window.ctl = (id, abierto) => { abierto ? controlAbierto.add(id) : controlAbierto.delete(id); };
+window.votar = (id, voto) => setDoc(doc(db, "reuniones", id, "votos", usuarioId), { voto, nombre: yo.nombre || yo.usuario || "", patrulla: patrullaId, uid: usuarioId, ts: Date.now() })
+  .catch(e => alert("No se pudo guardar tu voto: " + (e.code === "permission-denied" ? "sin permiso (la jefatura debe publicar las reglas de Firestore)." : e.message)));
 
 /* ===== Chats: patrulla (todos), jefatura (JP) y Alta Patrulla (JP y SJP) ===== */
 window.cambiarCanal = (c) => {
@@ -269,14 +285,14 @@ function iniciar() {
   $("yo-nombre").textContent = yo.nombre || yo.usuario || "";
   $("yo-rol").textContent = yo.rol || "scout";
   $("yo-rol").className = "rol " + (yo.rol || "scout");
-  if (vistaPrevia) $("banner-prev").classList.remove("oculto");
+  if (vistaPrevia) { $("banner-prev").classList.remove("oculto"); document.querySelectorAll("a[data-ver]").forEach(a => a.href += "?ver=" + patrullaId); }
   if (esJefe) {
     document.querySelectorAll(".solo-jefe").forEach(e => e.classList.remove("oculto"));
     $("tab-jefatura").classList.remove("oculto");
   }
   if (esAlta) $("tab-alta").classList.remove("oculto");
   iniciarNoLeidos();
-  escucharMiembros(); escucharObjetivosTropa(); escucharObjetivos(); escucharActividades(); escucharInventario(); escucharChat();
+  escucharMiembros(); escucharObjetivosTropa(); escucharObjetivos(); escucharActividades(); escucharReuniones(); escucharChat();
   [["input-objetivo", () => agregarObjetivo()], ["input-actividad", () => agregarActividad()]]
     .forEach(([id, fn]) => $(id).addEventListener("keydown", e => { if (e.key === "Enter") fn(); }));
   $("input-mensaje").addEventListener("keydown", e => { if (e.key === "Enter") enviarMensaje(); });
@@ -286,6 +302,7 @@ function iniciar() {
 function escucharMiembros() {
   onSnapshot(query(collection(db, "usuarios"), where("patrulla", "==", patrullaId)), (snap) => {
     miembros = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    pintarReuniones();
     $("stat-miembros").textContent = miembros.length;
     const mio = miembros.find(m => m.id === usuarioId);
     const mios = (mio?.puestos || []).map(porNombre).filter(Boolean);
@@ -323,7 +340,7 @@ function escucharObjetivosTropa() {
     const docs = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(a.fecha) - ms(b.fecha));
     const hechos = docs.filter(d => d.hecho).length;
     $("lista-tropa").innerHTML = docs.length ? docs.map(d => `<div class="obj ${d.hecho ? "hecho" : ""}">
-      <input type="checkbox" ${d.hecho ? "checked" : ""} disabled aria-label="Objetivo de tropa cumplido"><span>${esc(d.texto)}</span></div>`).join("")
+      <input type="checkbox" ${d.hecho ? "checked" : ""} disabled aria-label="Objetivo de tropa cumplido"><span>${esc(d.texto)}${d.descripcion ? `<small class="desc">${esc(d.descripcion)}</small>` : ""}</span></div>`).join("")
       : `<p class="vacio">La jefatura todavía no ha fijado objetivos de tropa.</p>`;
     $("txt-tropa").textContent = `${hechos} de ${docs.length} cumplidos`;
     $("barra-tropa").style.width = (docs.length ? Math.round(hechos / docs.length * 100) : 0) + "%";
@@ -336,10 +353,12 @@ window.agregarObjetivo = async () => {
   const input = $("input-objetivo"), texto = input.value.trim();
   if (!texto) return;
   try {
-    await addDoc(collection(db, "patrulla_objetivos"), { texto, hecho: false, patrulla: patrullaId, creadoEn: Date.now(), autor: yo.nombre || "" });
-    input.value = ""; input.focus();
+    await addDoc(collection(db, "patrulla_objetivos"), { texto, descripcion: $("input-obj-desc").value.trim(), hecho: false, patrulla: patrullaId, creadoEn: Date.now(), autor: yo.nombre || "" });
+    input.value = ""; $("input-obj-desc").value = ""; input.focus();
   } catch (e) { alert("No se pudo añadir el objetivo: " + e.message); }
 };
+const objPat = {};
+window.editarDescObj = (id) => { if (!esJefe) return; const v = prompt("Descripción del objetivo:", objPat[id]?.descripcion || ""); if (v === null) return; updateDoc(doc(db, "patrulla_objetivos", id), { descripcion: v.trim().slice(0, 300) }).catch(e => alert(e.message)); };
 window.marcarObjetivo = (id, hecho) => esJefe && updateDoc(doc(db, "patrulla_objetivos", id), { hecho }).catch(e => alert(e.message));
 window.borrarItem = async (col, id) => { if (esJefe && confirm("¿Eliminar este elemento?")) await deleteDoc(doc(db, col, id)).catch(e => alert(e.message)); };
 const borrar = (col, id) => esJefe ? `<button type="button" class="del" title="Eliminar" aria-label="Eliminar" onclick="borrarItem('${col}','${id}')">✕</button>` : "";
@@ -349,10 +368,11 @@ const consulta = (col) => query(collection(db, col), where("patrulla", "==", pat
 function escucharObjetivos() {
   onSnapshot(consulta("patrulla_objetivos"), (snap) => {
     const docs = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.creadoEn || 0) - (a.creadoEn || 0));
+    docs.forEach(d => objPat[d.id] = d);
     const hechos = docs.filter(d => d.hecho).length;
     $("lista-objetivos").innerHTML = docs.length ? docs.map(d => `<div class="obj ${d.hecho ? "hecho" : ""}">
       <input type="checkbox" ${d.hecho ? "checked" : ""} ${esJefe ? "" : "disabled"} onchange="marcarObjetivo('${d.id}', this.checked)" aria-label="Objetivo cumplido">
-      <span>${esc(d.texto)}</span>${borrar("patrulla_objetivos", d.id)}</div>`).join("")
+      <span>${esc(d.texto)}${d.descripcion ? `<small class="desc">${esc(d.descripcion)}</small>` : ""}</span>${esJefe ? `<button type="button" class="del" title="Editar descripción" aria-label="Editar descripción" onclick="editarDescObj('${d.id}')">✎</button>` : ""}${borrar("patrulla_objetivos", d.id)}</div>`).join("")
       : `<p class="vacio">Todavía no hay objetivos de patrulla. ${esJefe ? "Propón el primero junto con la jefatura." : "El JP los fijará con el JT."}</p>`;
     $("stat-objetivos").textContent = `${hechos}/${docs.length}`;
     $("txt-progreso").textContent = `${hechos} de ${docs.length} cumplidos`;

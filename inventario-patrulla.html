@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventario · Tropa San Francisco Javier</title>
+<link rel="icon" type="image/png" href="marca-agua.png">
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="scout.css">
+</head>
+<body>
+<header class="topbar">
+  <a href="index.html" class="brand"><span class="brand-logo"><img src="marca-agua.png" alt="Logo Scouts"></span><span>Tropa San Francisco Javier</span></a>
+  <nav class="nav"><a href="patrulla.html" id="volver">← Mi patrulla</a></nav>
+</header>
+<main class="pagina">
+  <h1>📦 Inventario de la patrulla</h1>
+  <p class="sub" id="sub">Lo que tiene vuestra patrulla y lo que os falta. Lo actualiza la jefatura.</p>
+  <section class="card">
+    <div class="card-head"><h2 id="tit">Material</h2><span class="count" id="txt-presu"></span></div>
+    <div id="lista-inventario"><p class="vacio">Cargando…</p></div>
+  </section>
+</main>
+<script type="module">
+import { collection, onSnapshot, query, where, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { auth, db } from "./firebase-config.js";
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const CATS = { cocina: "🍳 Cocina", pionerismo: "🪵 Pionerismo", otros: "📦 Otros" };
+const NOMBRES = { toro: "🐂 Patrulla Toro", leon: "🦁 Patrulla León" };
+
+onAuthStateChanged(auth, async (u) => {
+  if (!u) { location.href = "acceso-patrulla.html"; return; }
+  const s = await getDoc(doc(db, "usuarios", u.uid));
+  if (!s.exists()) { location.href = "acceso-patrulla.html"; return; }
+  const yo = s.data(), kraal = yo.rol === "JT" || yo.rol === "kraal";
+  const ver = new URLSearchParams(location.search).get("ver");
+  const p = kraal ? ver : yo.patrulla;
+  if (!NOMBRES[p]) { location.href = kraal ? "dashboard.html" : "patrulla.html"; return; }
+  $("volver").href = "patrulla.html" + (kraal ? "?ver=" + p : "");
+  $("tit").textContent = NOMBRES[p];
+
+  onSnapshot(doc(db, "presupuestos", p), (d) => {
+    const t = d.exists() ? d.data().total : "";
+    $("txt-presu").textContent = t !== "" && t != null ? `💰 Presupuesto: ${t} €` : "";
+  }, () => {});
+  onSnapshot(query(collection(db, "inventario"), where("seccion", "==", p)), (snap) => {
+    const items = snap.docs.map(d => d.data()).sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), "es"));
+    const fila = (d) => `<div class="inv-fila ${d.falta ? "falta" : ""}"><span class="inv-cant">${esc(d.cantidad)}</span><span>${esc(d.nombre)}</span></div>`;
+    const bloque = (lista) => Object.keys(CATS).map(c => {
+      const xs = lista.filter(d => (d.categoria || "otros") === c);
+      return xs.length ? `<span class="cat-tag">${CATS[c]}</span>${xs.map(fila).join("")}` : "";
+    }).join("");
+    const stock = items.filter(d => !d.falta), faltas = items.filter(d => d.falta);
+    $("lista-inventario").innerHTML = items.length
+      ? (stock.length ? bloque(stock) : `<p class="vacio">Aún no hay material apuntado.</p>`) + (faltas.length ? `<div class="faltas"><b>⚠️ Necesidades</b>${bloque(faltas)}</div>` : "")
+      : `<p class="vacio">La jefatura todavía no ha apuntado el inventario de la patrulla.</p>`;
+  }, (e) => { $("lista-inventario").innerHTML = `<p class="vacio">No se pudo cargar${e.code === "permission-denied" ? ": sin permiso." : "."}</p>`; });
+});
+</script>
+</body>
+</html>

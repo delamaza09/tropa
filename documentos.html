@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Documentación · Tropa San Francisco Javier</title>
+<link rel="icon" type="image/png" href="marca-agua.png">
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="scout.css">
+</head>
+<body>
+<header class="topbar">
+  <a href="index.html" class="brand"><span class="brand-logo"><img src="marca-agua.png" alt="Logo Scouts"></span><span>Tropa San Francisco Javier</span></a>
+  <nav class="nav"><a href="patrulla.html" id="volver">← Mi patrulla</a></nav>
+</header>
+<main class="pagina">
+  <h1>📄 Documentación</h1>
+  <p class="sub">Documentos de la tropa en PDF: autorizaciones, listas, normas y más. Los sube la jefatura.</p>
+  <div id="lista" class="lista" style="max-height:none"><p class="vacio">Cargando…</p></div>
+</main>
+<script type="module">
+import { collection, onSnapshot, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { auth, db } from "./firebase-config.js";
+import { abrirPDF, tamanoLegible } from "./documentos-lib.js";
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let docs = [];
+
+onAuthStateChanged(auth, async (u) => {
+  if (!u) { location.href = "acceso-patrulla.html"; return; }
+  const s = await getDoc(doc(db, "usuarios", u.uid));
+  if (!s.exists()) { location.href = "acceso-patrulla.html"; return; }
+  if (s.data().rol === "JT" || s.data().rol === "kraal") $("volver").href = "gestion-documentos.html";
+  onSnapshot(collection(db, "documentos"), (snap) => {
+    docs = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.creadoEn || 0) - (a.creadoEn || 0));
+    $("lista").innerHTML = docs.length ? docs.map((d, i) => `<div class="doc"><span class="ico">📕</span>
+      <div class="info"><b>${esc(d.titulo)}</b>${d.descripcion ? `<small>${esc(d.descripcion)}</small>` : ""}<small>${esc(tamanoLegible(d.tamano || 0))} · ${new Date(d.creadoEn || 0).toLocaleDateString("es-ES")}</small></div>
+      <div class="acc"><button class="btn peq" onclick="abrir(${i})">Abrir</button><button class="btn peq" onclick="abrir(${i}, true)">Descargar</button></div></div>`).join("")
+      : `<p class="vacio">La jefatura todavía no ha subido documentos.</p>`;
+  }, (e) => { $("lista").innerHTML = `<p class="vacio">No se pudo cargar${e.code === "permission-denied" ? ": sin permiso." : "."}</p>`; });
+});
+window.abrir = (i, descargar) => abrirPDF(db, docs[i], !!descargar);
+</script>
+</body>
+</html>

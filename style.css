@@ -122,3 +122,34 @@ body { height: 100vh; height: 100dvh; }
 .oculto{display:none!important}
 .badge-nl{background:#e53935;color:#fff;border-radius:99px;font-size:.72rem;font-weight:800;padding:1px 8px;margin-left:8px}
 .menu-btn.tiene-nl::after{content:"";position:absolute;top:4px;right:4px;width:11px;height:11px;border-radius:50%;background:#e53935;border:2px solid #fff}
+
+/* --- Reuniones, documentación y progresión (Kraal) --- */
+.item .desc { display: block; color: #546c5f; font-size: .85rem; margin-top: 2px; }
+.reu { background: #fff; border: 1px solid var(--borde); border-left: 6px solid var(--insignia); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+.reu.pasada { opacity: .65; border-left-color: #9bb3a4; }
+.reu h3 { margin: 0 0 2px; }
+.reu .meta { color: #546c5f; font-size: .9rem; margin-bottom: 8px; }
+.cifras { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.cifras span { border-radius: 99px; padding: 3px 12px; font-weight: 800; font-size: .85rem; background: #d8ebdf; color: var(--primary-osc); }
+.cifras .no { background: #f6e3df; color: var(--toro); }
+.cifras .sr { background: #eef0e6; color: #6b6a3a; }
+.pat-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pat-cols h4 { margin: 4px 0; font-family: Bitter, Georgia, serif; }
+.pat-cols p { margin: 3px 0; font-size: .88rem; overflow-wrap: anywhere; }
+@media (max-width: 700px) { .pat-cols { grid-template-columns: 1fr; } }
+.mini { height: 10px; background: #d8ebdf; border-radius: 99px; overflow: hidden; flex: 1; min-width: 60px; }
+.mini i { display: block; height: 100%; background: var(--primary-osc); }
+.mini.hecha i { background: var(--insignia); }
+.al-fila { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.al-fila b { flex: 1 1 140px; }
+details.alumno { background: #fff; border: 1px solid var(--borde); border-radius: 12px; padding: 10px 14px; margin-bottom: 10px; }
+details.alumno summary { cursor: pointer; list-style: none; }
+details.alumno summary::-webkit-details-marker { display: none; }
+.etapa-blq { margin: 10px 0 4px; }
+.etapa-blq h4 { margin: 0 0 4px; font-family: Bitter, Georgia, serif; color: var(--primary-osc); }
+.check { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: .92rem; }
+.check input { width: auto; margin: 0; accent-color: var(--primary-osc); }
+.fila-sube { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.fila-sube input[type=file] { flex: 1 1 220px; }
+.barra-sube { height: 10px; background: #d8ebdf; border-radius: 99px; overflow: hidden; margin-top: 10px; display: none; }
+.barra-sube i { display: block; height: 100%; width: 0; background: var(--primary-osc); }

@@ -200,3 +200,56 @@ body.entrada{display:grid;place-items:center;padding:24px;background:radial-grad
 .punto{display:inline-block;width:9px;height:9px;border-radius:50%;background:#e53935;margin-left:6px;vertical-align:middle;box-shadow:0 0 0 2px rgba(229,57,53,.3);animation:late 1.6s ease-in-out infinite}
 @keyframes late{50%{box-shadow:0 0 0 5px rgba(229,57,53,0)}}
 @media (prefers-reduced-motion:reduce){.punto{animation:none}}
+
+/* ===== Descripción de objetivos ===== */
+.obj .desc,.item .desc{display:block;color:var(--suave);font-size:.85rem;font-weight:400;margin-top:2px}
+
+/* ===== Reuniones: votar si vas o no ===== */
+.reunion{background:#fff;border:1px solid var(--borde);border-left:6px solid var(--insignia);border-radius:12px;padding:12px 14px}
+.reunion h3{font-family:Bitter,Georgia,serif;color:var(--pino);font-size:1.05rem}
+.reunion .meta{color:var(--suave);font-size:.88rem;margin:2px 0 6px}
+.reunion .txt{font-size:.92rem;margin-bottom:8px;overflow-wrap:anywhere}
+.votar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.voto{border:2px solid var(--borde);background:#fff;color:var(--texto);border-radius:10px;padding:8px 16px;font-weight:800;cursor:pointer}
+.voto:hover{border-color:var(--musgo)}
+.voto.si.on{background:var(--pino2);border-color:var(--pino2);color:#fff}
+.voto.no.on{background:var(--peligro);border-color:var(--peligro);color:#fff}
+.votar small{color:var(--suave)}
+.control{margin-top:10px;border-top:1px dashed var(--borde);padding-top:8px;font-size:.88rem}
+.control summary{cursor:pointer;font-weight:700;color:var(--pino)}
+.control p{margin-top:6px;overflow-wrap:anywhere}
+
+/* ===== Documentación ===== */
+.doc{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--borde);border-radius:12px;padding:12px 14px;flex-wrap:wrap}
+.doc .ico{font-size:1.8rem}
+.doc .info{flex:1 1 220px;min-width:0}
+.doc .info b{color:var(--pino);overflow-wrap:anywhere}
+.doc .info small{display:block;color:var(--suave);font-size:.82rem}
+.doc .acc{display:flex;gap:6px}
+
+/* ===== Progresión personal (verde oscuro = lo que llevas) ===== */
+.resumen{background:var(--pino);color:#fff;border-radius:var(--radio);padding:22px 24px;margin-bottom:18px;border-bottom:6px solid var(--insignia)}
+.resumen h2{font-family:Bitter,Georgia,serif;font-size:1.3rem}
+.resumen p{color:#b9d6c5;margin:2px 0 12px}
+.resumen .pista{height:14px;background:rgba(255,255,255,.18);border-radius:99px;overflow:hidden}
+.resumen .pista i{display:block;height:100%;background:var(--insignia);border-radius:99px}
+.pasos{background:var(--papel);border:1px solid var(--borde);border-radius:var(--radio);padding:18px 22px;margin-bottom:18px}
+.pasos h2{font-family:Bitter,Georgia,serif;color:var(--pino);font-size:1.15rem;margin-bottom:8px}
+.pasos ul{list-style:none;display:flex;flex-direction:column;gap:6px}
+.pasos li{background:#fff;border:1px solid var(--borde);border-radius:10px;padding:8px 12px;display:flex;gap:10px;align-items:center}
+.pasos li::before{content:"○";color:var(--musgo);font-weight:800}
+.pasos .sig{color:var(--suave);margin-top:10px;font-size:.9rem}
+.peldao{position:relative}
+.peldao .barra-et{height:12px;background:var(--salvia);border-radius:99px;overflow:hidden;margin-top:10px}
+.peldao .barra-et i{display:block;height:100%;background:var(--pino);border-radius:99px;transition:width .4s}
+.peldao .cuenta{font-size:.85rem;font-weight:700;color:var(--pino);margin-top:4px}
+.peldao.hecha{background:var(--pino);border-color:var(--pino);border-left-color:var(--insignia);color:#fff}
+.peldao.hecha h2,.peldao.hecha .etapa,.peldao.hecha p,.peldao.hecha .cuenta{color:#fff}
+.peldao.hecha .etapa{color:var(--hoja)}
+.peldao.hecha .barra-et{background:rgba(255,255,255,.2)}.peldao.hecha .barra-et i{background:var(--insignia)}
+.peldao.actual{border-color:var(--pino);border-left-color:var(--pino);box-shadow:0 0 0 2px var(--pino)}
+.peldao.futura{opacity:.7}
+.esp{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.esp span{border:1px solid var(--borde);background:#fff;color:var(--suave);border-radius:99px;padding:3px 11px;font-size:.85rem;font-weight:600}
+.esp span.ok{background:var(--pino);border-color:var(--pino);color:#fff}
+@media (prefers-reduced-motion:reduce){.peldao .barra-et i{transition:none}}

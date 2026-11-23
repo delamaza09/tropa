@@ -15,6 +15,9 @@
         <a href="inventario.html" class="menu-item">Inventario</a>
         <a href="objetivos.html" class="menu-item">Objetivos tropa</a>
         <a href="gestion-patrullas.html" class="menu-item active">Patrullas</a>
+        <a href="gestion-reuniones.html" class="menu-item">Reuniones</a>
+        <a href="gestion-documentos.html" class="menu-item">Documentación</a>
+        <a href="gestion-progresion.html" class="menu-item">Progresión</a>
         <a href="gestion-pa.html" class="menu-item">Profundiza PA</a>
         <a href="usuarios.html" class="menu-item">🔑 Usuarios</a>
         <a href="calendario.html" class="menu-item">Calendario</a>
@@ -56,7 +59,7 @@
             <div class="grid-2">
                 <section class="card">
                     <h2>Objetivos de la patrulla</h2>
-                    <div class="fila-add"><input type="text" id="obj-txt" placeholder="Nuevo objetivo…" maxlength="120"><button class="btn btn-primary" onclick="addObjetivo()">Añadir</button></div>
+                    <div class="fila-add"><input type="text" id="obj-txt" placeholder="Nuevo objetivo…" maxlength="120"><input type="text" id="obj-desc" placeholder="Descripción (opcional)" maxlength="300"><button class="btn btn-primary" onclick="addObjetivo()">Añadir</button></div>
                     <div id="lista-obj"></div>
                 </section>
                 <section class="card">
@@ -183,8 +186,9 @@
             /* Objetivos */
             bajas.push(onSnapshot(porPatrulla("patrulla_objetivos"), (snap) => {
                 const ds = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.creadoEn || 0) - (a.creadoEn || 0));
+                ds.forEach(o => objCache[o.id] = o);
                 $("lista-obj").innerHTML = ds.length ? ds.map(o =>
-                    `<div class="item ${o.hecho ? "hecho" : ""}"><input type="checkbox" ${o.hecho ? "checked" : ""} onchange="marcar('${o.id}', this.checked)" aria-label="Cumplido"><span>${esc(o.texto)}</span><button class="x" onclick="borrar('patrulla_objetivos','${o.id}')" aria-label="Eliminar">✕</button></div>`).join("")
+                    `<div class="item ${o.hecho ? "hecho" : ""}"><input type="checkbox" ${o.hecho ? "checked" : ""} onchange="marcar('${o.id}', this.checked)" aria-label="Cumplido"><span>${esc(o.texto)}${o.descripcion ? `<small class="desc">${esc(o.descripcion)}</small>` : ""}</span><button class="x" onclick="editDesc('${o.id}')" title="Editar descripción" aria-label="Editar descripción">✎</button><button class="x" onclick="borrar('patrulla_objetivos','${o.id}')" aria-label="Eliminar">✕</button></div>`).join("")
                     : '<p class="vacio">Sin objetivos todavía.</p>';
             }, (e) => fallo("lista-obj", e)));
 
@@ -234,9 +238,11 @@
         }
 
         /* ---- Acciones ---- */
+        const objCache = {};
         const intentar = async (fn) => { try { await fn(); } catch (e) { alert("No se pudo guardar: " + (e.code === "permission-denied" ? "sin permiso (publica las reglas de Firestore)." : e.message)); } };
         window.addObjetivo = () => intentar(async () => { const t = $("obj-txt").value.trim(); if (!t) return;
-            await addDoc(collection(db, "patrulla_objetivos"), { texto: t, hecho: false, patrulla: vista, creadoEn: Date.now(), autor: miNombre }); $("obj-txt").value = ""; });
+            await addDoc(collection(db, "patrulla_objetivos"), { texto: t, descripcion: $("obj-desc").value.trim(), hecho: false, patrulla: vista, creadoEn: Date.now(), autor: miNombre }); $("obj-txt").value = ""; $("obj-desc").value = ""; });
+        window.editDesc = (id) => { const v = prompt("Descripción del objetivo:", objCache[id]?.descripcion || ""); if (v === null) return; intentar(() => updateDoc(doc(db, "patrulla_objetivos", id), { descripcion: v.trim().slice(0, 300) })); };
         window.addActividad = () => intentar(async () => { const t = $("act-txt").value.trim(); if (!t) return;
             await addDoc(collection(db, "patrulla_actividades"), { texto: t, fecha: $("act-fecha").value, hora: $("act-hora").value, patrulla: vista, creadoEn: Date.now(), autor: miNombre });
             $("act-txt").value = ""; $("act-fecha").value = ""; $("act-hora").value = ""; });

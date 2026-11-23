@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Progresión · Tropa San Francisco Javier</title>
+    <link rel="icon" type="image/png" href="marca-agua.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <button class="menu-btn" onclick="toggleMenu()" aria-label="Menú">☰</button>
+    <nav class="sidebar" id="sidebar">
+        <div class="brand">San Francisco Javier</div>
+        <a href="dashboard.html" class="menu-item">Dashboard</a>
+        <a href="inventario.html" class="menu-item">Inventario</a>
+        <a href="objetivos.html" class="menu-item">Objetivos tropa</a>
+        <a href="gestion-patrullas.html" class="menu-item">Patrullas</a>
+        <a href="gestion-reuniones.html" class="menu-item">Reuniones</a>
+        <a href="gestion-documentos.html" class="menu-item">Documentación</a>
+        <a href="gestion-progresion.html" class="menu-item active">Progresión</a>
+        <a href="gestion-pa.html" class="menu-item">Profundiza PA</a>
+        <a href="usuarios.html" class="menu-item">🔑 Usuarios</a>
+        <a href="calendario.html" class="menu-item">Calendario</a>
+        <a href="notas.html" class="menu-item">📝 Notas</a>
+        <div class="menu-item logout" onclick="logout()">Cerrar Sesión</div>
+    </nav>
+
+    <main class="content">
+        <h1>📈 Progresión de los scouts</h1>
+        <p class="subtitle">Marca los requisitos que ha cumplido cada scout. Él lo verá en su página de progresión, en verde oscuro, con sus próximos pasos.</p>
+        <div class="tabs-pat" id="tabs">
+            <button type="button" class="on" data-p="toro">🐂 Toro</button>
+            <button type="button" data-p="leon">🦁 León</button>
+        </div>
+        <div id="lista"><p class="vacio">Cargando…</p></div>
+    </main>
+
+    <script type="module">
+        import { collection, onSnapshot, setDoc, doc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { db } from "./firebase-config.js";
+        import { ETAPAS, ESPECIALIDADES, resumen } from "./progresion-data.js";
+        import "./auth-guard.js";
+
+        window.toggleMenu = () => document.getElementById('sidebar').classList.toggle('active');
+        const $ = (id) => document.getElementById(id);
+        const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+        let patrulla = "toro", scouts = [], prog = {}, abiertos = new Set();
+
+        $("tabs").addEventListener("click", (e) => {
+            const b = e.target.closest("button"); if (!b) return;
+            patrulla = b.dataset.p;
+            document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("on", x === b));
+            pintar();
+        });
+        onSnapshot(collection(db, "usuarios"), (s) => {
+            scouts = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => !["JT", "kraal"].includes(u.rol));
+            pintar();
+        }, (e) => console.warn(e));
+        onSnapshot(collection(db, "progresion"), (s) => {
+            prog = {}; s.docs.forEach(d => prog[d.id] = d.data().hechos || []); pintar();
+        }, (e) => { $("lista").innerHTML = `<p class="vacio">No se pudo cargar${e.code === "permission-denied" ? ": publica las reglas nuevas de Firestore." : "."}</p>`; });
+
+        window.marcar = (uid, id, on) => setDoc(doc(db, "progresion", uid), { hechos: on ? arrayUnion(id) : arrayRemove(id), actualizado: Date.now() }, { merge: true })
+            .catch(e => alert("No se pudo guardar: " + (e.code === "permission-denied" ? "sin permiso (publica las reglas de Firestore)." : e.message)));
+        window.abrir = (uid, a) => { a ? abiertos.add(uid) : abiertos.delete(uid); };
+
+        function pintar() {
+            const gente = scouts.filter(s => s.patrulla === patrulla).sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), "es"));
+            $("lista").innerHTML = gente.length ? gente.map(s => {
+                const r = resumen(prog[s.id]);
+                const check = (x) => `<label class="check"><input type="checkbox" ${r.h.has(x.id) ? "checked" : ""} onchange="marcar('${s.id}','${x.id}',this.checked)">${esc(x.texto)}</label>`;
+                return `<details class="alumno" ${abiertos.has(s.id) ? "open" : ""} ontoggle="abrir('${s.id}', this.open)">
+                    <summary><div class="al-fila"><b>${esc(s.nombre || s.usuario)} <small style="font-weight:400">${s.rol !== "scout" ? esc(s.rol) : ""}</small></b>
+                    ${r.etapas.map(e => `<div class="mini ${e.completa ? "hecha" : ""}" title="${esc(e.nombre)} ${e.pct}%"><i style="width:${e.pct}%"></i></div>`).join("")}
+                    <span style="font-size:.85rem">${r.actual ? esc(r.actual.nombre) + " " + r.actual.pct + "%" : "Etapas completas"}</span></div></summary>
+                    ${ETAPAS.map(e => `<div class="etapa-blq"><h4>${esc(e.nombre)}</h4>${e.reqs.map(check).join("")}</div>`).join("")}
+                    <div class="etapa-blq"><h4>Especialidades</h4>${ESPECIALIDADES.map(check).join("")}</div></details>`;
+            }).join("") : '<p class="vacio">Esta patrulla todavía no tiene scouts. Créalos en Usuarios.</p>';
+        }
+    </script>
+</body>
+</html>

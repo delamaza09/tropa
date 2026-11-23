@@ -14,6 +14,9 @@
         <a href="inventario.html" class="menu-item">Inventario</a>
         <a href="objetivos.html" class="menu-item active">Objetivos tropa</a>
         <a href="gestion-patrullas.html" class="menu-item">Patrullas</a>
+        <a href="gestion-reuniones.html" class="menu-item">Reuniones</a>
+        <a href="gestion-documentos.html" class="menu-item">Documentación</a>
+        <a href="gestion-progresion.html" class="menu-item">Progresión</a>
         <a href="gestion-pa.html" class="menu-item">Profundiza PA</a>
         <a href="usuarios.html" class="menu-item">🔑 Usuarios</a>
         <a href="calendario.html" class="menu-item">Calendario</a>
@@ -28,6 +31,7 @@
         <div class="card">
             <div style="display:flex; gap:10px;">
                 <input type="text" id="obj-input" placeholder="Ej: Que el 80% tenga la Promesa...">
+                <input type="text" id="obj-desc" placeholder="Descripción (opcional)" maxlength="300">
                 <button class="btn btn-primary" onclick="addObj()">Añadir</button>
             </div>
             <div id="lista-objetivos" style="margin-top:20px;"></div>
@@ -43,13 +47,15 @@
         const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
         const ms = (v) => v?.toMillis ? v.toMillis() : (typeof v === "number" ? v : 0);
         const ref = collection(db, "objetivos_tropa");
+        const cache = {};
         const intentar = async (fn) => { try { await fn(); } catch (e) { alert("No se pudo guardar: " + (e.code === "permission-denied" ? "sin permiso (publica las reglas de Firestore)." : e.message)); } };
 
         window.addObj = () => intentar(async () => {
             const input = document.getElementById('obj-input'), txt = input.value.trim();
             if (!txt) return;
-            await addDoc(ref, { texto: txt, hecho: false, fecha: Date.now() });
-            input.value = "";
+            const dsc = document.getElementById('obj-desc').value.trim();
+            await addDoc(ref, { texto: txt, descripcion: dsc, hecho: false, fecha: Date.now() });
+            input.value = ""; document.getElementById('obj-desc').value = "";
         });
         document.getElementById('obj-input').addEventListener('keydown', e => { if (e.key === 'Enter') addObj(); });
 
@@ -57,16 +63,19 @@
         onSnapshot(ref, (snap) => {
             const div = document.getElementById('lista-objetivos');
             const docs = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(a.fecha) - ms(b.fecha));
+            docs.forEach(d => cache[d.id] = d);
             div.innerHTML = docs.length ? docs.map(data => `
                 <div style="padding:15px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:10px;">
                     <input type="checkbox" ${data.hecho ? 'checked' : ''} onchange="check('${data.id}', this.checked)" style="width:20px; height:20px;">
-                    <span style="flex:1; font-size:1.1rem; ${data.hecho ? 'text-decoration:line-through; color:#aaa' : ''}">${esc(data.texto)}</span>
+                    <span style="flex:1; font-size:1.1rem; ${data.hecho ? 'text-decoration:line-through; color:#aaa' : ''}">${esc(data.texto)}${data.descripcion ? `<small class="desc" style="display:block; font-size:.85rem; font-weight:400; color:#546c5f; text-decoration:none">${esc(data.descripcion)}</small>` : ""}</span>
+                    <button onclick="editDesc('${data.id}')" style="background:none; border:none; cursor:pointer;" title="Editar descripción" aria-label="Editar descripción">✎</button>
                     <button onclick="del('${data.id}')" style="background:none; border:none; cursor:pointer;" aria-label="Eliminar">🗑️</button>
                 </div>`).join("") : '<p class="vacio">Todavía no hay objetivos de tropa.</p>';
         }, (e) => {
             document.getElementById('lista-objetivos').innerHTML = `<p class="vacio" style="color:#b3402f">${e.code === "permission-denied" ? "Sin permiso: publica las reglas nuevas (firestore.rules) en Firebase." : "No se pudo cargar: " + esc(e.message)}</p>`;
         });
 
+        window.editDesc = (id) => { const v = prompt("Descripción del objetivo:", cache[id]?.descripcion || ""); if (v === null) return; intentar(() => updateDoc(doc(db, "objetivos_tropa", id), { descripcion: v.trim().slice(0, 300) })); };
         window.check = (id, st) => intentar(() => updateDoc(doc(db, "objetivos_tropa", id), { hecho: st }));
         window.del = (id) => confirm("¿Eliminar este objetivo?") && intentar(() => deleteDoc(doc(db, "objetivos_tropa", id)));
     </script>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentación · Tropa San Francisco Javier</title>
+    <link rel="icon" type="image/png" href="marca-agua.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <button class="menu-btn" onclick="toggleMenu()" aria-label="Menú">☰</button>
+    <nav class="sidebar" id="sidebar">
+        <div class="brand">San Francisco Javier</div>
+        <a href="dashboard.html" class="menu-item">Dashboard</a>
+        <a href="inventario.html" class="menu-item">Inventario</a>
+        <a href="objetivos.html" class="menu-item">Objetivos tropa</a>
+        <a href="gestion-patrullas.html" class="menu-item">Patrullas</a>
+        <a href="gestion-reuniones.html" class="menu-item">Reuniones</a>
+        <a href="gestion-documentos.html" class="menu-item active">Documentación</a>
+        <a href="gestion-progresion.html" class="menu-item">Progresión</a>
+        <a href="gestion-pa.html" class="menu-item">Profundiza PA</a>
+        <a href="usuarios.html" class="menu-item">🔑 Usuarios</a>
+        <a href="calendario.html" class="menu-item">Calendario</a>
+        <a href="notas.html" class="menu-item">📝 Notas</a>
+        <div class="menu-item logout" onclick="logout()">Cerrar Sesión</div>
+    </nav>
+
+    <main class="content">
+        <h1>📄 Documentación</h1>
+        <p class="subtitle">Sube PDF para toda la tropa (máx. 5 MB cada uno). Los scouts los ven en su apartado «Documentación».</p>
+
+        <section class="card">
+            <h2>Subir un PDF</h2>
+            <div class="form-grid">
+                <div><label for="d-tit">Título</label><input type="text" id="d-tit" maxlength="80" placeholder="Ej: Autorización campamento"></div>
+                <div><label for="d-des">Descripción (opcional)</label><input type="text" id="d-des" maxlength="200"></div>
+            </div>
+            <div class="fila-sube" style="margin-top:12px"><input type="file" id="d-file" accept="application/pdf,.pdf"><button class="btn btn-primary" id="btn-sube" onclick="subir()">Subir</button></div>
+            <div class="barra-sube" id="barra"><i id="barra-i"></i></div>
+            <div id="ok" class="aviso-ok" role="status"></div><div id="ko" class="aviso-ko" role="alert"></div>
+        </section>
+
+        <section class="card">
+            <h2>Documentos subidos</h2>
+            <div id="lista"><p class="vacio">Cargando…</p></div>
+        </section>
+    </main>
+
+    <script type="module">
+        import { collection, onSnapshot, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { auth, db } from "./firebase-config.js";
+        import { subirPDF, borrarPDF, abrirPDF, tamanoLegible, MAX_MB } from "./documentos-lib.js";
+        import "./auth-guard.js";
+
+        window.toggleMenu = () => document.getElementById('sidebar').classList.toggle('active');
+        const $ = (id) => document.getElementById(id);
+        const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+        const msg = (id, t) => { $("ok").classList.remove("ver"); $("ko").classList.remove("ver"); $(id).textContent = t; $(id).classList.add("ver"); };
+        let docs = [], miNombre = "Jefatura";
+        onAuthStateChanged(auth, async (u) => { if (u) { const s = await getDoc(doc(db, "usuarios", u.uid)); if (s.exists()) miNombre = s.data().nombre || "Jefatura"; } });
+
+        window.subir = async () => {
+            const f = $("d-file").files[0], titulo = $("d-tit").value.trim() || (f ? f.name.replace(/\.pdf$/i, "") : "");
+            if (!f) return msg("ko", "Elige un archivo PDF.");
+            $("btn-sube").disabled = true; $("barra").style.display = "block";
+            try {
+                await subirPDF(db, { file: f, titulo, descripcion: $("d-des").value.trim(), autor: miNombre, progreso: (p) => $("barra-i").style.width = Math.round(p * 100) + "%" });
+                msg("ok", `«${titulo}» subido. Ya lo ven los scouts.`);
+                ["d-tit", "d-des", "d-file"].forEach(id => $(id).value = "");
+            } catch (e) { msg("ko", e.code === "permission-denied" ? "Sin permiso: publica las reglas nuevas de Firestore." : e.message); }
+            $("btn-sube").disabled = false; setTimeout(() => { $("barra").style.display = "none"; $("barra-i").style.width = "0"; }, 800);
+        };
+        window.abrir = (i, d) => abrirPDF(db, docs[i], !!d);
+        window.borrar = (i) => confirm("¿Eliminar este documento?") && borrarPDF(db, docs[i].id).catch(e => alert("No se pudo borrar: " + e.message));
+
+        onSnapshot(collection(db, "documentos"), (snap) => {
+            docs = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.creadoEn || 0) - (a.creadoEn || 0));
+            $("lista").innerHTML = docs.length ? docs.map((d, i) => `<div class="item"><span>📕 <b>${esc(d.titulo)}</b>${d.descripcion ? `<small class="desc">${esc(d.descripcion)}</small>` : ""}<small class="desc">${esc(tamanoLegible(d.tamano || 0))} · ${new Date(d.creadoEn || 0).toLocaleDateString("es-ES")} · ${esc(d.autor || "")}</small></span>
+                <button class="btn btn-primary" style="padding:6px 12px" onclick="abrir(${i})">Abrir</button><button class="x" onclick="borrar(${i})" aria-label="Eliminar">🗑️</button></div>`).join("")
+                : '<p class="vacio">Todavía no hay documentos.</p>';
+        }, (e) => { $("lista").innerHTML = `<p class="vacio">No se pudo cargar${e.code === "permission-denied" ? ": publica las reglas nuevas de Firestore." : "."}</p>`; });
+    </script>
+</body>
+</html>

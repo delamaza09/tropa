@@ -10,18 +10,51 @@
 </head>
 <body>
 <header class="topbar">
-  <a href="patrulla.html" class="brand"><span class="brand-logo"><img src="marca-agua.png" alt="Logo Scouts"></span><span>Tropa San Francisco Javier</span></a>
-  <nav class="nav"><a href="patrulla.html">← Mi patrulla</a></nav>
+  <a href="index.html" class="brand"><span class="brand-logo"><img src="marca-agua.png" alt="Logo Scouts"></span><span>Tropa San Francisco Javier</span></a>
+  <nav class="nav"><a href="patrulla.html" id="volver">← Mi patrulla</a></nav>
 </header>
 <main class="pagina">
-  <h1>Escalera de progresión</h1>
-  <p class="sub">Etapas y especialidades para crecer en la patrulla.</p>
-  <div class="escalera">
-    <div class="peldao"><span class="etapa">Etapa 1 · Tu promesa</span><h2>Aspirante</h2><p>Conoce la patrulla, su rincón y prepárate para hacer tu promesa.</p></div>
-    <div class="peldao p2"><span class="etapa">Etapa 2 · Ocupa tu puesto</span><h2>Segunda Clase</h2><p>Asume un puesto de acción en la patrulla y avanza en las técnicas de campo.</p></div>
-    <div class="peldao p3"><span class="etapa">Etapa 3 · Avanza</span><h2>Primera Clase</h2><p>Amplía responsabilidades y afronta retos mayores con tu patrulla.</p></div>
-    <div class="peldao p4"><span class="etapa">Insignias</span><h2>Especialidades</h2><p>Campismo, naturaleza, raid-explo, transmisiones, socorrismo, cocina y más.</p></div>
-  </div>
+  <h1>Mi progresión</h1>
+  <p class="sub">Lo que ya llevas hecho aparece en verde oscuro. Los siguientes pasos te dicen qué toca ahora.</p>
+  <div id="contenido"><p class="vacio">Cargando…</p></div>
 </main>
+<script type="module">
+import { onSnapshot, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { auth, db } from "./firebase-config.js";
+import { ETAPAS, ESPECIALIDADES, resumen } from "./progresion-data.js";
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+onAuthStateChanged(auth, async (u) => {
+  if (!u) { location.href = "acceso-patrulla.html"; return; }
+  const s = await getDoc(doc(db, "usuarios", u.uid));
+  if (!s.exists()) { location.href = "acceso-patrulla.html"; return; }
+  if (s.data().rol === "JT" || s.data().rol === "kraal") { location.href = "gestion-progresion.html"; return; }
+  onSnapshot(doc(db, "progresion", u.uid), (d) => pintar(resumen(d.exists() ? d.data().hechos : [])),
+    (e) => { $("contenido").innerHTML = `<p class="vacio">No se pudo cargar${e.code === "permission-denied" ? ": sin permiso." : "."}</p>`; });
+});
+
+function pintar(r) {
+  const act = r.actual;
+  const proximos = act ? act.reqs.filter(x => !r.h.has(x.id)).slice(0, 5) : [];
+  const sig = act ? ETAPAS[ETAPAS.indexOf(ETAPAS.find(e => e.id === act.id)) + 1] : null;
+  let html = `<section class="resumen"><h2>${act ? "Vas por: " + esc(act.nombre) : "¡Has completado todas las etapas!"}</h2>
+    <p>${r.pct}% del camino recorrido${act ? ` · ${act.hechos} de ${act.total} pasos de ${esc(act.nombre)}` : ""}</p>
+    <div class="pista"><i style="width:${r.pct}%"></i></div></section>`;
+  html += `<section class="pasos"><h2>👣 Próximos pasos</h2>` + (act
+    ? `<ul>${proximos.map(x => `<li>${esc(x.texto)}</li>`).join("")}</ul>` + (act.total - act.hechos > proximos.length ? `<p class="sig">Y ${act.total - act.hechos - proximos.length} más para completar ${esc(act.nombre)}.</p>` : "")
+      + `<p class="sig">${sig ? `Después: <b>${esc(sig.nombre)}</b>.` : "Después: ¡las especialidades!"}</p>`
+    : `<p class="sig">Ya tienes todas las etapas. Sigue sumando especialidades.</p>`) + `</section>`;
+  html += `<div class="escalera">` + r.etapas.map((e, i) => `<div class="peldao p${i + 1} ${e.completa ? "hecha" : act && act.id === e.id ? "actual" : "futura"}">
+      <span class="etapa">${esc(e.lema)}</span><h2>${e.completa ? "✓ " : ""}${esc(e.nombre)}</h2><p>${esc(e.desc)}</p>
+      <div class="barra-et"><i style="width:${e.pct}%"></i></div><div class="cuenta">${e.hechos} de ${e.total} · ${e.pct}%</div></div>`).join("")
+    + `<div class="peldao p4"><span class="etapa">Insignias</span><h2>Especialidades</h2><p>Campismo, naturaleza, raid-explo, transmisiones, socorrismo, cocina y más.</p>
+      <div class="cuenta">${r.espHechas} de ${ESPECIALIDADES.length} conseguidas</div>
+      <div class="esp">${ESPECIALIDADES.map(x => `<span class="${r.h.has(x.id) ? "ok" : ""}">${r.h.has(x.id) ? "✓ " : ""}${esc(x.texto)}</span>`).join("")}</div></div></div>`;
+  $("contenido").innerHTML = html;
+}
+</script>
 </body>
 </html>
