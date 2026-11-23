@@ -7,7 +7,7 @@ export const ETAPAS = [
       { id: "asp2", texto: "Aprender la Ley Scout" },
       { id: "asp3", texto: "Aprender el significado de la Promesa" },
       { id: "asp4", texto: "Asistir con regularidad a las reuniones" },
-      { id: "asp5", texto: "Pasarse las pruebas del cuaderno" }
+      { id: "asp5", texto: "Pasarse las pruebas del cuaderno" },
       { id: "asp6", texto: "Hacer tu Promesa" }
     ] },
   { id: "segunda", nombre: "Segunda Clase", lema: "Etapa 2 · Ocupa tu puesto", desc: "Asume un puesto de acción en la patrulla y avanza en las técnicas de campo.",
