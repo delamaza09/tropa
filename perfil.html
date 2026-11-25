@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mi perfil · Tropa San Francisco Javier</title>
+<link rel="icon" type="image/png" href="marca-agua.png">
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="scout.css">
+</head>
+<body>
+<header class="topbar">
+  <a href="index.html" class="brand"><span class="brand-logo"><img src="marca-agua.png" alt="Logo Scouts"></span><span>Tropa San Francisco Javier</span></a>
+  <nav class="nav"><a href="patrulla.html" id="volver">← Volver</a></nav>
+</header>
+<main class="pagina" style="max-width:560px">
+  <h1>👤 Mi perfil</h1>
+  <p class="sub">Tus datos y tu contraseña.</p>
+
+  <section class="card" style="margin-bottom:18px">
+    <div class="card-head"><h2>Mis datos</h2></div>
+    <p><b>Nombre:</b> <span id="p-nombre">—</span></p>
+    <p><b>Usuario:</b> <span id="p-usuario">—</span></p>
+    <p><b>Rol:</b> <span id="p-rol">—</span> <span id="p-pat"></span></p>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Cambiar contraseña</h2></div>
+    <div id="ok" class="error" style="background:#d8ebdf;color:var(--pino)" role="status"></div>
+    <div id="ko" class="error" role="alert"></div>
+    <div class="campo"><label for="actual">Contraseña actual</label><input type="password" id="actual" autocomplete="current-password"></div>
+    <div class="campo"><label for="nueva">Contraseña nueva (mínimo 6 caracteres)</label><input type="password" id="nueva" autocomplete="new-password"></div>
+    <div class="campo"><label for="repite">Repite la contraseña nueva</label><input type="password" id="repite" autocomplete="new-password"></div>
+    <button type="button" id="guardar" class="btn-grande">Guardar contraseña</button>
+  </section>
+</main>
+
+<script type="module">
+import { onAuthStateChanged, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { auth, db } from "./firebase-config.js";
+
+const $ = (id) => document.getElementById(id);
+const PAT = { toro: "🐂 Toro", leon: "🦁 León" };
+const mostrar = (id, t) => { $("ok").classList.remove("ver"); $("ko").classList.remove("ver"); $(id).textContent = t; $(id).classList.add("ver"); };
+let usuario = null;
+
+onAuthStateChanged(auth, async (u) => {
+  if (!u) { location.href = "acceso-patrulla.html"; return; }
+  usuario = u;
+  const s = await getDoc(doc(db, "usuarios", u.uid));
+  const d = s.exists() ? s.data() : {};
+  const kraal = d.rol === "JT" || d.rol === "kraal";
+  $("volver").href = kraal ? "dashboard.html" : "patrulla.html";
+  $("p-nombre").textContent = d.nombre || "—";
+  $("p-usuario").textContent = d.usuario || (u.email || "").replace("@tropanube.app", "");
+  $("p-rol").textContent = d.rol || "—";
+  $("p-pat").textContent = PAT[d.patrulla] ? "· " + PAT[d.patrulla] : "";
+});
+
+$("guardar").addEventListener("click", async () => {
+  const actual = $("actual").value, nueva = $("nueva").value, repite = $("repite").value;
+  if (!actual || !nueva) return mostrar("ko", "Escribe tu contraseña actual y la nueva.");
+  if (nueva.length < 6) return mostrar("ko", "La contraseña nueva debe tener al menos 6 caracteres.");
+  if (nueva !== repite) return mostrar("ko", "Las dos contraseñas nuevas no coinciden.");
+  if (nueva === actual) return mostrar("ko", "La contraseña nueva tiene que ser distinta de la actual.");
+  $("guardar").disabled = true;
+  try {
+    await reauthenticateWithCredential(usuario, EmailAuthProvider.credential(usuario.email, actual));
+    await updatePassword(usuario, nueva);
+    ["actual", "nueva", "repite"].forEach(id => $(id).value = "");
+    mostrar("ok", "Contraseña cambiada. Úsala la próxima vez que entres.");
+  } catch (e) {
+    const c = e.code || "";
+    mostrar("ko", c === "auth/wrong-password" || c === "auth/invalid-credential" ? "La contraseña actual no es correcta."
+      : c === "auth/weak-password" ? "La contraseña nueva es demasiado débil."
+      : c === "auth/too-many-requests" ? "Demasiados intentos. Espera unos minutos y vuelve a probar."
+      : "No se pudo cambiar: " + e.message);
+  }
+  $("guardar").disabled = false;
+});
+</script>
+</body>
+</html>

@@ -14,7 +14,7 @@
 <header class="topbar">
   <a href="index.html" class="brand"><span class="brand-logo"><img src="marca-agua.png" alt="Logo Scouts"></span><span>Tropa San Francisco Javier</span></a>
   <nav class="nav">
-    <a href="#chat">Chat<i class="punto oculto" id="pt-nav"></i></a><a href="#puestos">Puestos</a><a href="profundiza-pa.html">Profundiza en tu PA</a><a href="#objetivos-tropa">Objetivos</a><a href="#actividades">Actividades</a><a href="inventario-patrulla.html" data-ver>Inventario</a><a href="documentos.html">Documentación</a>
+    <a href="#chat">Chat<i class="punto oculto" id="pt-nav"></i></a><a href="#puestos">Puestos</a><a href="profundiza-pa.html">Profundiza en tu PA</a><a href="#objetivos-tropa">Objetivos</a><a href="#actividades">Actividades</a><a href="#reuniones">Reuniones</a><a href="inventario-patrulla.html" data-ver>Inventario</a><a href="documentos.html">Documentación</a><a href="perfil.html">Mi perfil</a>
     <a href="progresion.html" class="principal">Mi progresión</a>
     <span class="yo"><span id="yo-nombre"></span><span id="yo-rol" class="rol"></span></span>
     <button type="button" class="btn-salir" onclick="cerrarSesion()">Cerrar sesión</button>
@@ -64,17 +64,6 @@
   </div>
   
   <div class="col">
-    <section id="actividades" class="card">
-      <div class="card-head"><h2>Próximas actividades</h2><span class="count">Tropa + patrulla</span></div>
-      <div class="add solo-jefe oculto">
-        <input type="text" id="input-actividad" placeholder="Ej: Salida del sábado, fuego de campamento…" maxlength="120" aria-label="Nueva actividad">
-        <input type="date" id="input-fecha" aria-label="Fecha">
-        <input type="time" id="input-hora" aria-label="Hora">
-        <button type="button" class="btn" onclick="agregarActividad()">Añadir actividad</button>
-      </div>
-      <div id="lista-actividades" class="lista"></div>
-    </section>
-
     <section id="puestos" class="card">
       <div class="card-head"><h2>Puestos de acción</h2><span class="count" id="txt-puestos"></span></div>
       <p class="nota">Cada scout tiene uno o dos puestos. Los reparte el JP.</p>
@@ -105,7 +94,22 @@
       <div id="lista-objetivos" class="lista"></div>
     </section>
 
+    <section id="actividades" class="card">
+      <div class="card-head"><h2>Próximas actividades</h2><span class="count">Tropa + patrulla</span></div>
+      <div class="add solo-jefe oculto">
+        <input type="text" id="input-actividad" placeholder="Ej: Salida del sábado, fuego de campamento…" maxlength="120" aria-label="Nueva actividad">
+        <input type="date" id="input-fecha" aria-label="Fecha">
+        <input type="time" id="input-hora" aria-label="Hora">
+        <button type="button" class="btn" onclick="agregarActividad()">Añadir actividad</button>
+      </div>
+      <div id="lista-actividades" class="lista"></div>
+    </section>
 
+    <section id="reuniones" class="card">
+      <div class="card-head"><h2>Próximas reuniones</h2><span class="count" id="txt-reuniones"></span></div>
+      <p class="nota">Vota si vas o no vas, así la jefatura sabe con quién cuenta.</p>
+      <div id="lista-reuniones" class="lista" style="max-height:none"></div>
+    </section>
   </div>
 
 </main>
@@ -149,6 +153,42 @@ function iniciarNoLeidos() {
   new IntersectionObserver((es) => { chatVisible = es[0].isIntersecting; refrescarPuntos(); }, { threshold: 0.3 }).observe($("chat"));
   document.addEventListener("visibilitychange", refrescarPuntos);
 }
+/* ===== Próximas reuniones: votar si vas o no ===== */
+const hoyReu = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const fmtFechaReu = (f) => new Date(f + "T00:00").toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
+let reuniones = [], misVotos = {}, votosPat = {}, escuchadas = new Set(), controlAbierto = new Set();
+function escucharReuniones() {
+  onSnapshot(collection(db, "reuniones"), (snap) => {
+    reuniones = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(r => (r.fecha || "") >= hoyReu())
+      .sort((a, b) => (a.fecha + (a.hora || "")).localeCompare(b.fecha + (b.hora || ""))).slice(0, 6);
+    reuniones.forEach(r => {
+      if (escuchadas.has(r.id)) return; escuchadas.add(r.id);
+      if (!vistaPrevia) onSnapshot(doc(db, "reuniones", r.id, "votos", usuarioId), (s) => { misVotos[r.id] = s.exists() ? s.data().voto : null; pintarReuniones(); }, (e) => console.warn(e));
+      if (esJefe || vistaPrevia) onSnapshot(query(collection(db, "reuniones", r.id, "votos"), where("patrulla", "==", patrullaId)), (s) => { votosPat[r.id] = s.docs.map(d => d.data()); pintarReuniones(); }, (e) => console.warn(e));
+    });
+    pintarReuniones();
+  }, (e) => fallo("lista-reuniones", e));
+}
+function pintarReuniones() {
+  $("txt-reuniones").textContent = reuniones.length ? `${reuniones.length} próxima${reuniones.length > 1 ? "s" : ""}` : "";
+  $("lista-reuniones").innerHTML = reuniones.length ? reuniones.map(r => {
+    const v = misVotos[r.id], vs = votosPat[r.id] || [];
+    const de = (x) => miembros.filter(m => vs.some(o => o.uid === m.id && o.voto === x)).map(m => esc(m.nombre || m.usuario));
+    const pend = miembros.filter(m => !vs.some(o => o.uid === m.id)).map(m => esc(m.nombre || m.usuario));
+    const control = (esJefe || vistaPrevia) ? `<details class="control" ${controlAbierto.has(r.id) ? "open" : ""} ontoggle="ctl('${r.id}', this.open)"><summary>Control de tu patrulla: ✅ ${de("si").length} · ❌ ${de("no").length} · ⏳ ${pend.length}</summary>
+        <p>✅ <b>Van:</b> ${de("si").join(", ") || "—"}</p><p>❌ <b>No van:</b> ${de("no").join(", ") || "—"}</p><p>⏳ <b>Sin responder:</b> ${pend.join(", ") || "—"}</p></details>` : "";
+    return `<div class="reunion"><h3>${esc(r.titulo)}</h3>
+      <div class="meta">📅 ${fmtFechaReu(r.fecha)}${r.hora ? " · 🕒 " + esc(r.hora) : ""}${r.lugar ? " · 📍 " + esc(r.lugar) : ""}</div>
+      ${r.descripcion ? `<div class="txt">${esc(r.descripcion)}</div>` : ""}
+      ${vistaPrevia ? "" : `<div class="votar"><button type="button" class="voto si ${v === "si" ? "on" : ""}" onclick="votar('${r.id}','si')">✅ Voy</button><button type="button" class="voto no ${v === "no" ? "on" : ""}" onclick="votar('${r.id}','no')">❌ No voy</button>
+        <small>${v === "si" ? "Has votado que vas" : v === "no" ? "Has votado que no vas" : "Aún no has votado"}</small></div>`}
+      ${control}</div>`;
+  }).join("") : `<p class="vacio">No hay reuniones convocadas todavía.</p>`;
+}
+window.ctl = (id, abierto) => { abierto ? controlAbierto.add(id) : controlAbierto.delete(id); };
+window.votar = (id, voto) => setDoc(doc(db, "reuniones", id, "votos", usuarioId), { voto, nombre: yo.nombre || yo.usuario || "", patrulla: patrullaId, uid: usuarioId, ts: Date.now() })
+  .catch(e => alert("No se pudo guardar tu voto: " + (e.code === "permission-denied" ? "sin permiso (la jefatura debe publicar las reglas de Firestore)." : e.message)));
+
 /* ===== Chats: patrulla (todos), jefatura (JP) y Alta Patrulla (JP y SJP) ===== */
 window.cambiarCanal = (c) => {
   if (c === "jefatura_chat" && !esJefe) return;
@@ -252,7 +292,7 @@ function iniciar() {
   }
   if (esAlta) $("tab-alta").classList.remove("oculto");
   iniciarNoLeidos();
-  escucharMiembros(); escucharObjetivosTropa(); escucharObjetivos(); escucharActividades(); escucharChat();
+  escucharMiembros(); escucharObjetivosTropa(); escucharObjetivos(); escucharActividades(); escucharReuniones(); escucharChat();
   [["input-objetivo", () => agregarObjetivo()], ["input-actividad", () => agregarActividad()]]
     .forEach(([id, fn]) => $(id).addEventListener("keydown", e => { if (e.key === "Enter") fn(); }));
   $("input-mensaje").addEventListener("keydown", e => { if (e.key === "Enter") enviarMensaje(); });
@@ -262,7 +302,7 @@ function iniciar() {
 function escucharMiembros() {
   onSnapshot(query(collection(db, "usuarios"), where("patrulla", "==", patrullaId)), (snap) => {
     miembros = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    pintarActividades();
+    pintarReuniones();
     $("stat-miembros").textContent = miembros.length;
     const mio = miembros.find(m => m.id === usuarioId);
     const mios = (mio?.puestos || []).map(porNombre).filter(Boolean);
@@ -352,7 +392,7 @@ window.agregarActividad = async () => {
 };
 const hoy = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const MESES = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"];
-let actPatrulla = [], actTropa = [], misVotos = {}, votosPat = {}, escuchadasVotos = new Set(), controlAbierto = new Set();
+let actPatrulla = [], actTropa = [];
 
 /* Agenda = actividades de la patrulla + calendario de la jefatura (colección "actividades") */
 function escucharActividades() {
@@ -366,30 +406,9 @@ function escucharActividades() {
       const cr = (x.cronograma || []).slice().sort((a, b) => String(a.inicio).localeCompare(String(b.inicio)));
       return { id: d.id, texto: x.nombre, fecha: x.fecha, hora: cr[0]?.inicio || "", lugar: x.ubicacion && x.ubicacion !== "Sin definir" ? x.ubicacion : "", cronograma: cr, tropa: true };
     });
-    actTropa.forEach(a => escucharVotos(a.id));
     pintarActividades();
   }, (e) => console.error("actividades (calendario de tropa)", e));
 }
-/* Votar si vas a una actividad de la tropa (Voy / No voy). El JP ve el control de su patrulla. */
-function escucharVotos(id) {
-  if (escuchadasVotos.has(id)) return; escuchadasVotos.add(id);
-  if (!vistaPrevia) onSnapshot(doc(db, "actividades", id, "votos", usuarioId), (s) => { misVotos[id] = s.exists() ? s.data().voto : null; pintarActividades(); }, (e) => console.warn("voto", e.code || e));
-  if (esJefe || vistaPrevia) onSnapshot(query(collection(db, "actividades", id, "votos"), where("patrulla", "==", patrullaId)), (s) => { votosPat[id] = s.docs.map(d => d.data()); pintarActividades(); }, (e) => console.warn("votos", e.code || e));
-}
-function bloqueVotos(d) {
-  const v = misVotos[d.id], vs = votosPat[d.id] || [];
-  const de = (x) => miembros.filter(m => vs.some(o => o.uid === m.id && o.voto === x)).map(m => esc(m.nombre || m.usuario));
-  const pend = miembros.filter(m => !vs.some(o => o.uid === m.id)).map(m => esc(m.nombre || m.usuario));
-  const botones = vistaPrevia ? "" : `<div class="votar"><button type="button" class="voto si ${v === "si" ? "on" : ""}" onclick="votar('${d.id}','si')">✅ Voy</button><button type="button" class="voto no ${v === "no" ? "on" : ""}" onclick="votar('${d.id}','no')">❌ No voy</button>
-    <small>${v === "si" ? "Has votado que vas" : v === "no" ? "Has votado que no vas" : "Aún no has votado"}</small></div>`;
-  const control = (esJefe || vistaPrevia) ? `<details class="control" ${controlAbierto.has(d.id) ? "open" : ""} ontoggle="ctl('${d.id}', this.open)"><summary>Control de tu patrulla: ✅ ${de("si").length} · ❌ ${de("no").length} · ⏳ ${pend.length}</summary>
-    <p>✅ <b>Van:</b> ${de("si").join(", ") || "—"}</p><p>❌ <b>No van:</b> ${de("no").join(", ") || "—"}</p><p>⏳ <b>Sin responder:</b> ${pend.join(", ") || "—"}</p></details>` : "";
-  return botones + control;
-}
-window.ctl = (id, abierto) => { abierto ? controlAbierto.add(id) : controlAbierto.delete(id); };
-window.votar = (id, voto) => setDoc(doc(db, "actividades", id, "votos", usuarioId), { voto, nombre: yo.nombre || yo.usuario || "", patrulla: patrullaId, uid: usuarioId, ts: Date.now() })
-  .catch(e => alert("No se pudo guardar tu voto: " + (e.code === "permission-denied" ? "sin permiso (la jefatura debe publicar las reglas de Firestore)." : e.message)));
-
 function pintarActividades() {
   const docs = [...actPatrulla, ...actTropa]
     .sort((a, b) => (a.fecha || "9999").localeCompare(b.fecha || "9999") || (a.hora || "").localeCompare(b.hora || ""));
@@ -397,8 +416,8 @@ function pintarActividades() {
     const f = d.fecha ? new Date(d.fecha + "T00:00") : null;
     const dia = f ? `<div class="dia">${f.getDate()}<small>${f.toLocaleDateString("es-ES", { month: "short" })}</small></div>` : `<div class="dia sinf">—<small>sin fecha</small></div>`;
     const crono = (d.cronograma || []).map(c => `<small class="crono">${esc(c.inicio)}–${esc(c.fin)} · ${esc(c.actividad)}</small>`).join("");
-    return `<div class="act">${dia}<div class="t">${esc(d.texto)}<span class="etiqueta ${d.tropa ? "" : "pat"}">${d.tropa ? "Tropa" : "Patrulla"}</span>${d.lugar ? `<small class="h">📍 ${esc(d.lugar)}</small>` : ""}${d.hora ? `<small class="h">${esc(d.hora)} h</small>` : ""}${crono}${d.tropa && d.fecha && d.fecha >= hoy() ? bloqueVotos(d) : ""}</div>${d.tropa ? "" : borrar("patrulla_actividades", d.id)}</div>`;
-  }).join("") : `<p class="vacio">No hay actividades a la vista. ${esJefe ? "Añade la próxima salida o actividad." : "El JP o el JT las publicarán aquí."}</p>`;
+    return `<div class="act">${dia}<div class="t">${esc(d.texto)}<span class="etiqueta ${d.tropa ? "" : "pat"}">${d.tropa ? "Tropa" : "Patrulla"}</span>${d.lugar ? `<small class="h">📍 ${esc(d.lugar)}</small>` : ""}${d.hora ? `<small class="h">${esc(d.hora)} h</small>` : ""}${crono}</div>${d.tropa ? "" : borrar("patrulla_actividades", d.id)}</div>`;
+  }).join("") : `<p class="vacio">No hay actividades a la vista. ${esJefe ? "Añade la próxima salida o reunión." : "El JP o el JT las publicarán aquí."}</p>`;
   $("stat-actividades").textContent = docs.length;
 
   /* Aviso de próxima actividad (la más cercana de las dos agendas) */
